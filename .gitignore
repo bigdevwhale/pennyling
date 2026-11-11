@@ -1,0 +1,17 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+.kotlin/
+*.keystore
+*.jks
+/design
+/art/*.log
+/art/*.txt
+/art_gen.log

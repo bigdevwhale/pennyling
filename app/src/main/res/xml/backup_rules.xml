@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="database" path="pennyling.db" />
+    <include domain="file" path="datastore/pennyling.preferences_pb" />
+    <include domain="file" path="photos/" />
+</full-backup-content>
