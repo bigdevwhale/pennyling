@@ -274,11 +274,25 @@ fun CellarPage(d: Data, nav: Nav) {
 
 @Composable
 private fun BillRow(b: Bill, d: Data, onClick: () -> Unit) {
-    val every = when (b.every) { Bill.WEEK -> tr("в неделю", "a week"); Bill.YEAR -> tr("в год", "a year"); else -> tr("в месяц", "a month") }
+    val every = everyLabel(b.every)
     Row2(b.title, if (!b.active) tr("остановлен", "stopped") else tr("следующий ${fmtDayShort(b.next)}", "next ${fmtDayShort(b.next)}") + if (b.keep == 2) tr(" · под вопросом", " · in doubt") else "",
         (if (b.income) "+" else "") + money(b.amount) + " " + every, lead = { if (b.sub) Prop("barrel", 36.dp) else CatMark(d.catById[b.catId], 36.dp, d.pets) }, onClick = onClick)
 }
 
+/** "a month", "a week"… or "every 2 months", "every 10 days". */
+fun everyLabel(code: String): String {
+    val e = Bills.every(code)
+    val n = e.n.toLong()
+    if (e.n == 1) return when (e.unit) { 'd' -> tr("в день", "a day"); 'w' -> tr("в неделю", "a week"); 'y' -> tr("в год", "a year"); else -> tr("в месяц", "a month") }
+    return when (e.unit) {
+        'd' -> tr("раз в $n ${plural(n, "день", "дня", "дней")}", "every $n days")
+        'w' -> tr("раз в $n ${plural(n, "неделю", "недели", "недель")}", "every $n weeks")
+        'y' -> tr("раз в $n ${plural(n, "год", "года", "лет")}", "every $n years")
+        else -> tr("раз в $n ${plural(n, "месяц", "месяца", "месяцев")}", "every $n months")
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun BillEditor(b: Bill, d: Data, onClose: () -> Unit) {
     val c = LocalContext.current.container
@@ -292,7 +306,33 @@ fun BillEditor(b: Bill, d: Data, onClose: () -> Unit) {
         TextField(tr("Название", "Name"), title, { title = it.take(40) }, tr("Кино, аренда, спортзал…", "Streaming, rent, gym…"))
         MoneyField(tr("Сумма", "Amount"), amount, { amount = it })
         Text(tr("Как часто", "How often"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf(Bill.MONTH to tr("Каждый месяц", "Monthly"), Bill.WEEK to tr("Каждую неделю", "Weekly"), Bill.YEAR to tr("Каждый год", "Yearly")).forEach { (k, l) -> Chip(l, every == k) { every = k } } }
+        // Wraps on narrow screens (#1); "own" opens any period: every N days, weeks, months or years.
+        val presets = listOf(Bill.MONTH to tr("Каждый месяц", "Monthly"), Bill.WEEK to tr("Каждую неделю", "Weekly"), Bill.YEAR to tr("Каждый год", "Yearly"))
+        var own by remember(b) { mutableStateOf(presets.none { it.first == b.every }) }
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            presets.forEach { (k, l) -> Chip(l, !own && every == k) { own = false; every = k } }
+            Chip(tr("Свой период", "Custom"), own) {
+                if (!own) { own = true; val e = Bills.every(every); every = Bills.Every(maxOf(2, e.n), e.unit).code }
+            }
+        }
+        if (own) {
+            val e = Bills.every(every)
+            val n = e.n.toLong()
+            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(tr("Раз в", "Every"), style = T.body)
+                Ghost("−", Modifier.padding(start = 8.dp), small = true) { every = e.copy(n = (e.n - 1).coerceAtLeast(1)).code }
+                Text(e.n.toString(), style = T.bodyB, modifier = Modifier.padding(horizontal = 10.dp))
+                Ghost("+", small = true) { every = e.copy(n = (e.n + 1).coerceAtMost(999)).code }
+            }
+            androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    'd' to tr(plural(n, "день", "дня", "дней"), if (n == 1L) "day" else "days"),
+                    'w' to tr(plural(n, "неделю", "недели", "недель"), if (n == 1L) "week" else "weeks"),
+                    'm' to tr(plural(n, "месяц", "месяца", "месяцев"), if (n == 1L) "month" else "months"),
+                    'y' to tr(plural(n, "год", "года", "лет"), if (n == 1L) "year" else "years"),
+                ).forEach { (u, l) -> Chip(l, e.unit == u) { every = e.copy(unit = u).code } }
+            }
+        }
         Text(tr("Следующий раз", "Next time"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Ghost("−", small = true) { next-- }; Text(fmtDay(next), style = T.bodyB, modifier = Modifier.weight(1f).padding(horizontal = 8.dp)); Ghost("+", small = true) { next++ }

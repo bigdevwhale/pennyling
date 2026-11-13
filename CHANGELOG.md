@@ -6,6 +6,19 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.1.0] - 2026-11-13
+
+### Added
+- A regular payment can repeat on any period: "Custom" sets every N days, weeks, months or years, so a subscription billed every two months fits (#1). The cellar's yearly sum counts it right.
+
+### Fixed
+- The "How often" choices wrap onto a second line instead of running off the edge of narrow screens (#1).
+
+<!-- tg
+Новое: у регулярного платежа можно задать свой период – раз в сколько угодно дней, недель, месяцев или лет. Например, подписка раз в два месяца.
+Исправлено: кнопка «Каждый год» больше не уезжает за край экрана.
+-->
+
 ## [1.0.0] - 2026-11-11
 
 The first release of Pennyling.

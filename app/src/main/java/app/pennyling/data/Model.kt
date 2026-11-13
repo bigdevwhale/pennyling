@@ -73,7 +73,7 @@ data class Bill(
     val catId: Long = 0,
     val accountId: Long = 0,
     val income: Boolean = false,
-    val every: String = MONTH,        // m · w · y
+    val every: String = MONTH,        // m · w · y, or a count before the unit: 2m, 10d, 3w (Bills.every)
     val next: Long,
     val sub: Boolean = false,         // a subscription: lives in the cellar as a barrel
     val active: Boolean = true,

@@ -91,9 +91,24 @@ data class Ration(
 
 /** Regular payments: when they fall. */
 object Bills {
+    /** A bill's period: every [n] days ('d'), weeks ('w'), months ('m') or years ('y'). Stored as "m", "2m", "10d"… */
+    data class Every(val n: Int, val unit: Char) { val code get() = if (n == 1) unit.toString() else "$n$unit" }
+
+    fun every(code: String): Every {
+        val unit = code.lastOrNull()?.takeIf { it in "dwmy" } ?: return Every(1, 'm')
+        val n = code.dropLast(1).toIntOrNull() ?: 1
+        return Every(n.coerceIn(1, 999), unit)
+    }
+
     fun step(b: Bill, day: Long): Long {
         val d = LocalDate.ofEpochDay(day)
-        return when (b.every) { Bill.WEEK -> day + 7; Bill.YEAR -> d.plusYears(1).toEpochDay(); else -> d.plusMonths(1).toEpochDay() }
+        val e = every(b.every)
+        return when (e.unit) {
+            'd' -> day + e.n
+            'w' -> day + 7L * e.n
+            'y' -> d.plusYears(e.n.toLong()).toEpochDay()
+            else -> d.plusMonths(e.n.toLong()).toEpochDay()
+        }
     }
     /** Days in from..to the bill falls on (from its next date on). */
     fun dueIn(b: Bill, from: Long, to: Long): List<Long> {
@@ -102,6 +117,9 @@ object Bills {
         return out
     }
     /** What a bill costs a year. */
-    fun yearly(b: Bill): Long = when (b.every) { Bill.WEEK -> b.amount * 52; Bill.YEAR -> b.amount; else -> b.amount * 12 }
+    fun yearly(b: Bill): Long {
+        val e = every(b.every)
+        return when (e.unit) { 'd' -> b.amount * 365; 'w' -> b.amount * 52; 'y' -> b.amount; else -> b.amount * 12 } / e.n
+    }
     fun monthly(b: Bill): Long = yearly(b) / 12
 }
