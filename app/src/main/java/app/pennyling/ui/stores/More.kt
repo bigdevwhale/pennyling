@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,6 +88,8 @@ import app.pennyling.ui.components.Section
 import app.pennyling.ui.components.Segments
 import app.pennyling.ui.components.card
 import app.pennyling.ui.components.catColor
+import app.pennyling.ui.components.rememberReorder
+import app.pennyling.ui.components.reorderable
 import app.pennyling.ui.theme.C
 import app.pennyling.ui.theme.T
 import kotlinx.coroutines.launch
@@ -136,10 +139,13 @@ fun CatsPage(d: Data, nav: Nav) {
     var edit by remember { mutableStateOf<Cat?>(null) }
     Page(tr("Категории", "Categories"), { nav.pop() }, action = { Text(tr("Новая", "New"), style = T.smallB.copy(color = C.acc), modifier = Modifier.clickable { edit = Cat(name = "", order = d.cats.size) }.padding(10.dp)) }) {
         Text(tr("У каждой категории трат свой хранитель. Можно задать месячный лимит – он покажется в летописи.", "Each spending category has its keeper. Set a monthly limit and the chronicle shows it."), style = T.small)
+        Text(tr("Чтобы поменять категории местами, удерживайте одну и перетащите.", "To change the order, hold a category and drag it."), style = T.small, modifier = Modifier.padding(top = 4.dp))
+        val spend = rememberReorder(d.cats.filter { !it.income && !it.archived }, { it.id }) { m -> c.write { reorderCats(m.map { it.id }) } }
+        val income = rememberReorder(d.cats.filter { it.income && !it.archived }, { it.id }) { m -> c.write { reorderCats(m.map { it.id }) } }
         Section(tr("Траты", "Spending"))
-        Card { d.cats.filter { !it.income && !it.archived }.forEach { ct -> Row2(ct.name, ct.keeper.takeIf { it.isNotEmpty() }?.let { Pets.of(it).title }, if (ct.limit > 0) tr("лимит ${money(ct.limit)}", "limit ${money(ct.limit)}") else null, lead = { CatMark(ct, 36.dp, d.pets) }) { edit = ct } } }
+        Card { spend.items.forEach { ct -> key(ct.id) { Row2(ct.name, ct.keeper.takeIf { it.isNotEmpty() }?.let { Pets.of(it).title }, if (ct.limit > 0) tr("лимит ${money(ct.limit)}", "limit ${money(ct.limit)}") else null, Modifier.reorderable(spend, ct.id), lead = { CatMark(ct, 36.dp, d.pets) }) { edit = ct } } } }
         Section(tr("Доходы", "Income"))
-        Card { d.cats.filter { it.income && !it.archived }.forEach { ct -> Row2(ct.name, lead = { CatMark(ct, 36.dp, d.pets) }) { edit = ct } } }
+        Card { income.items.forEach { ct -> key(ct.id) { Row2(ct.name, modifier = Modifier.reorderable(income, ct.id), lead = { CatMark(ct, 36.dp, d.pets) }) { edit = ct } } } }
         val arch = d.cats.filter { it.archived }
         if (arch.isNotEmpty()) { Section(tr("Скрытые", "Hidden")); Card { arch.forEach { ct -> Row2(ct.name, lead = { CatMark(ct, 36.dp, d.pets) }) { edit = ct } } } }
     }

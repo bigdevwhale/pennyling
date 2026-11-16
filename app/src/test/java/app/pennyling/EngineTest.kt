@@ -1,9 +1,11 @@
 package app.pennyling
 
 import app.pennyling.data.Bill
+import app.pennyling.data.Cat
 import app.pennyling.data.Debt
 import app.pennyling.data.Pet
 import app.pennyling.data.Tx
+import app.pennyling.domain.Cats
 import app.pennyling.domain.Engine
 import app.pennyling.domain.Money
 import app.pennyling.domain.Notice
@@ -65,9 +67,38 @@ class EngineTest {
     }
 
     @Test fun everySpeciesHasSixFramesNamed() {
-        assertEquals(24, Pets.all.size)
+        assertEquals(25, Pets.all.size)
         assertEquals(Pets.all.size, Pets.all.map { it.id }.toSet().size)
-        assertEquals(14, Pets.all.count { it.cat.isNotEmpty() })
+        assertEquals(15, Pets.all.count { it.cat.isNotEmpty() })
+        // every spending built-in has its own keeper
+        Cats.seeds.filter { !it.income }.forEach { if (it.key != "other") assertNotNull(it.key, Pets.keeperOf(it.key)) }
+    }
+
+    @Test fun anOldBurrowGetsTheNewBuiltInCategoryAfterItsNeighbour() {
+        val old = Cats.defaults().filter { it.key != "hobby" }.mapIndexed { i, c -> c.copy(id = i + 1L, order = i) }
+        val all = Cats.missing(old)
+        val hobby = all.single { it.key == "hobby" }
+        assertEquals(0L, hobby.id)
+        assertEquals("ferret", hobby.keeper)
+        assertEquals(all.indexOfFirst { it.key == "fun" } + 1, all.indexOf(hobby))
+        assertEquals(all.indices.toList(), all.map { it.order })
+        assertTrue(Cats.missing(all.map { if (it.id == 0L) it.copy(id = 99) else it }).isEmpty())
+    }
+
+    @Test fun anOwnHobbyCategoryBecomesTheBuiltInOne() {
+        val old = Cats.defaults().filter { it.key != "hobby" }.mapIndexed { i, c -> c.copy(id = i + 1L, order = i) } +
+            Cat(id = 50, name = "хобби ", order = 40)
+        val all = Cats.missing(old)
+        assertEquals(old.size, all.size)
+        val mine = all.single { it.id == 50L }
+        assertEquals("hobby", mine.key); assertEquals("ferret", mine.keeper); assertEquals("хобби ", mine.name)
+    }
+
+    @Test fun reorderingMovesOnlyTheShownCategories() {
+        val cats = listOf(Cat(1, "a", order = 0), Cat(2, "in", income = true, order = 1), Cat(3, "b", order = 2), Cat(4, "c", order = 3))
+        val out = Cats.reorder(cats, listOf(4L, 1L, 3L))
+        assertEquals(listOf(4L, 2L, 1L, 3L), out.map { it.id })
+        assertEquals(listOf(0, 1, 2, 3), out.map { it.order })
     }
 
     @Test fun bankNotificationsAreRead() {

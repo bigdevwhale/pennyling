@@ -16,7 +16,8 @@ SHEETS = ROOT / "art" / "sheets"
 OUT = ROOT / "app" / "src" / "main" / "res" / "drawable-nodpi"
 
 PETS = ["hamster", "squirrel", "raccoon", "beaver", "mole", "hedgehog", "magpie", "chipmunk", "bat", "mouse", "bee", "pika",
-        "rabbit", "owl", "ant", "dormouse", "jay", "badger", "marmot", "fox", "crow", "tortoise", "otter", "pangolin"]
+        "rabbit", "owl", "ant", "dormouse", "jay", "badger", "marmot", "fox", "crow", "tortoise", "otter", "pangolin",
+        "ferret"]  # the first 24 eggs are in eggs.png, later ones in egg_<id>.png
 ITEMS = ["shelf", "barrels", "armchair", "stove", "books", "lantern", "fern", "clock",
          "sled", "sacks", "abacus", "chest", "garland", "hammock", "painting", "desk"]
 PROPS = ["acorn", "acorns", "coin", "crumbs", "jar0", "jar1", "jar2", "boulder",
@@ -96,6 +97,10 @@ def main():
         for name, fr in zip(PETS, frames(SHEETS / "eggs.png", 6, 4)):
             save(fr, f"egg_{name}")
         print("eggs")
+    for p in PETS:
+        if (SHEETS / f"egg_{p}.png").exists():
+            save(frames(SHEETS / f"egg_{p}.png", 1, 1)[0], f"egg_{p}")
+            print("egg", p)
     if (SHEETS / "burrow.png").exists():
         g = key(Image.open(SHEETS / "burrow.png"))
         g = g.resize((1152, round(1152 * g.height / g.width)), Image.LANCZOS)

@@ -29,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,9 @@ import app.pennyling.ui.components.Icon
 import app.pennyling.ui.components.Icons
 import app.pennyling.ui.components.Segments
 import app.pennyling.ui.components.catColor
+import app.pennyling.ui.components.rememberReorder
+import app.pennyling.ui.components.Tiles
+import app.pennyling.ui.components.reorderable
 import app.pennyling.ui.theme.C
 import app.pennyling.ui.theme.T
 import java.time.Instant
@@ -151,20 +155,18 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
                 AccountChips(d, toAcc) { toAcc = it }
             } else {
                 Text(tr("Категория", "Category"), style = T.sec, modifier = Modifier.padding(bottom = 6.dp))
-                cats.chunked(4).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        row.forEach { ct ->
-                            val on = ct.id == catId
-                            Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if (on) catColor(ct).copy(alpha = .18f) else androidx.compose.ui.graphics.Color.Transparent)
-                                .border(1.5.dp, if (on) catColor(ct) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(14.dp))
-                                .clickable { catId = ct.id }.padding(vertical = 6.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                CatMark(ct, 44.dp, d.pets)
-                                Text(ct.name, style = T.tiny.copy(color = if (on) C.ink else C.mute), maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
-                            }
+                // a long press lifts a category: drag it to another place
+                val order = rememberReorder(cats, { it.id }) { moved -> c.write { reorderCats(moved.map { it.id }) } }
+                Tiles(4, Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                    order.items.forEach { ct -> key(ct.id) {
+                        val on = ct.id == catId
+                        Column(Modifier.reorderable(order, ct.id).clip(RoundedCornerShape(14.dp)).background(if (on) catColor(ct).copy(alpha = .18f) else androidx.compose.ui.graphics.Color.Transparent)
+                            .border(1.5.dp, if (on) catColor(ct) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(14.dp))
+                            .clickable { catId = ct.id }.padding(vertical = 6.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            CatMark(ct, 44.dp, d.pets)
+                            Text(ct.name, style = T.tiny.copy(color = if (on) C.ink else C.mute), maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                         }
-                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                    Spacer(Modifier.height(4.dp))
+                    } }
                 }
             }
             // where from and which day: one row of two chips; the note right under

@@ -125,7 +125,10 @@ class AppContainer(context: Context) {
         afterAct()
     }
 
-    suspend fun updateTx(t: Tx) = lock.withLock { dao.update(t) }
+    /** Categories dragged into a new order: [ids] are the ones shown, in their new order. */
+    suspend fun reorderCats(ids: List<Long>) = lock.withLock { dao.updateCats(Cats.reorder(dao.catList(), ids)) }
+
+        suspend fun updateTx(t: Tx) = lock.withLock { dao.update(t) }
     suspend fun deleteTx(id: Long) = lock.withLock { dao.deleteTx(id) }
 
     /** «Spent nothing today»: a snow day. */
@@ -284,6 +287,8 @@ class AppContainer(context: Context) {
 
     /** Daily housekeeping: regular payments, a new period (and how the winter went), quests. */
     suspend fun tick() = lock.withLock {
+        if (settings.now().onboarded) Cats.missing(dao.catList()).takeIf { it.isNotEmpty() }?.let { all ->
+            dao.updateCats(all.filter { it.id != 0L }); all.filter { it.id == 0L }.forEach { dao.insert(it) } }
         postBills()
         val s = settings.now(); val t = clock()
         val p = Period.of(t, s.payday)

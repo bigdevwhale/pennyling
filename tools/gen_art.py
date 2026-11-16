@@ -59,6 +59,7 @@ PETS = {
     "tortoise": ("a small tortoise with a tiny pink piggy bank tied on its shell", "walking slowly and steadily, determined"),
     "otter": ("a river otter with a sleek brown coat", "floating on its back holding a smooth pebble on its belly"),
     "pangolin": ("a pangolin whose scales look like shiny gold coins", "curled up into a gleaming golden ball, peeking out"),
+    "ferret": ("a slender cream and brown ferret with a dark eye mask and a little red painter's beret", "painting on a tiny wooden easel with a brush, a ball of yarn beside it"),
 }
 
 
@@ -125,6 +126,16 @@ Objects in order (left to right, top to bottom):
 9 a bulging grain sack tied with string, 10 a wooden barrel with a tap, 11 a snowflake ice crystal, 12 a small wrapped gift box,
 13 a speckled egg in a straw nest, 14 a rolled paper receipt, 15 a golden medal with an oak leaf, 16 a small treasure chest open with gold coins.""",
 }
+
+
+# eggs of pets added after the first 24: one egg per sheet, egg_<species>.png
+for _id, _hint in {"ferret": "cream with dark brown mask bands and little paint splashes"}.items():
+    OTHER[f"egg_{_id}"] = f"""Use your image generation tool to create ONE image. Do nothing else (no file copying).
+
+Image: a single pet egg for a cozy money-saving app, in the same set as other patterned pet eggs.
+""" + OBJ_STYLE + f"""
+Layout: one square image on a flat solid pure magenta (#FF00FF) background. One egg, centered, filling about two thirds of the image, with clear margin; no text, no nest, no shadows on the background.
+The egg is egg-shaped, with a pattern and colours that hint at the creature inside: {_hint} (ferret)."""
 
 
 def image_of(output):

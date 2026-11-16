@@ -14,7 +14,7 @@ object Cats {
         CatSeed("food", "Продукты", "Groceries"), CatSeed("cafe", "Кафе и доставка", "Cafés & delivery"),
         CatSeed("home", "Дом и коммуналка", "Home & utilities"), CatSeed("transport", "Транспорт", "Transport"),
         CatSeed("health", "Здоровье", "Health"), CatSeed("shopping", "Покупки и одежда", "Shopping & clothes"),
-        CatSeed("fun", "Развлечения", "Fun"), CatSeed("connect", "Связь и подписки", "Phone & subscriptions"),
+        CatSeed("fun", "Развлечения", "Fun"), CatSeed("hobby", "Хобби", "Hobbies"), CatSeed("connect", "Связь и подписки", "Phone & subscriptions"),
         CatSeed("family", "Семья и дети", "Family & kids"), CatSeed("gifts", "Подарки", "Gifts"),
         CatSeed("travel", "Путешествия", "Travel"), CatSeed("care", "Уход за собой", "Self-care"),
         CatSeed("learn", "Учёба и книги", "Learning & books"), CatSeed("other", "Разное", "Other"),
@@ -25,6 +25,37 @@ object Cats {
 
     fun defaults(): List<Cat> = seeds.mapIndexed { i, s ->
         Cat(name = tr(s.ru, s.en), income = s.income, keeper = Pets.keeperOf(s.key)?.id.orEmpty(), icon = s.icon, order = i, key = s.key)
+    }
+
+    /**
+     * Built-in categories added in later versions, for a burrow set up before them. Each goes in right after the
+     * built-in one before it in [seeds]. A category of the user's own with the same name becomes the built-in one
+     * (it keeps its records and gets the keeper, unless it already has one).
+     * Returns the categories to update (with every order) or an empty list when nothing is missing.
+     */
+    fun missing(have: List<Cat>): List<Cat> {
+        val out = have.sortedWith(compareBy({ it.order }, { it.id })).toMutableList()
+        var changed = false
+        seeds.forEachIndexed { i, s ->
+            if (out.any { it.key == s.key }) return@forEachIndexed
+            val keeper = Pets.keeperOf(s.key)?.id.orEmpty()
+            val own = out.indexOfFirst { it.key.isEmpty() && it.income == s.income && it.name.trim().lowercase() in setOf(s.ru.lowercase(), s.en.lowercase()) }
+            if (own >= 0) out[own] = out[own].copy(key = s.key, keeper = out[own].keeper.ifEmpty { keeper })
+            else {
+                val prev = seeds.subList(0, i).asReversed().firstNotNullOfOrNull { p -> out.indexOfFirst { it.key == p.key }.takeIf { it >= 0 } } ?: -1
+                out.add(prev + 1, Cat(name = tr(s.ru, s.en), income = s.income, keeper = keeper, icon = s.icon, key = s.key))
+            }
+            changed = true
+        }
+        return if (changed) out.mapIndexed { i, c -> c.copy(order = i) } else emptyList()
+    }
+
+    /** [ids] in their new order, placed into the slots the same categories held among [all]; returns every category with its order. */
+    fun reorder(all: List<Cat>, ids: List<Long>): List<Cat> {
+        val sorted = all.sortedWith(compareBy({ it.order }, { it.id }))
+        val moved = ids.mapNotNull { id -> sorted.firstOrNull { it.id == id } }.iterator()
+        val set = ids.toSet()
+        return sorted.map { if (it.id in set && moved.hasNext()) moved.next() else it }.mapIndexed { i, c -> c.copy(order = i) }
     }
 }
 

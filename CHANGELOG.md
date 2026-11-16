@@ -6,6 +6,17 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.2.0] - 2026-11-16
+
+### Added
+- A built-in "Hobbies" spending category with its own keeper, the ferret: its egg turns up with the first record, like every other keeper's (#2). A burrow set up before gets it after "Fun"; a category of your own called "Hobbies" becomes it and keeps its records.
+- Categories change places with a long press and a drag, in the category grid of a new record and on the Categories page (#4).
+
+<!-- tg
+Новое: категория «Хобби» со своим хранителем – хорьком. Его яйцо появится с первой же записью. Если у вас уже была своя категория «Хобби», она станет этой, записи сохранятся.
+Новое: категории можно менять местами – удерживайте одну и перетащите. Работает и на экране записи, и в разделе «Категории».
+-->
+
 ## [1.1.0] - 2026-11-13
 
 ### Added

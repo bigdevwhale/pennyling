@@ -71,7 +71,8 @@ fun introFor(top: Screen?, tab: Int): Intro? = when (top) {
         tr("Наберите сумму на клавиатуре внизу.", "Type the sum on the keypad below."),
         tr("Выберите категорию – её хранитель получит опыт, а вы крошки.", "Pick a category – its keeper gets XP and you get crumbs."),
         tr("«Как обычно» – частые траты в одно касание.", "«The usual» – frequent spends in one tap."),
-        tr("Счёт и день меняются кнопками под категориями.", "The account and the day change with the buttons under the categories.")))
+        tr("Счёт и день меняются кнопками под категориями.", "The account and the day change with the buttons under the categories."),
+        tr("Удерживайте категорию и перетащите – так меняется их порядок.", "Hold a category and drag it to change the order.")))
     is Screen.PetInfo -> Intro("i.pet", "hamster", tr("Страница питомца", "A pet's page"), listOf(
         tr("Кнопки под питомцем меняют его позу.", "The buttons under the pet show its poses."),
         tr("«Место»: вожак и спутники стоят в норке и дают бонус к крошкам.", "«Place»: the leader and companions stand in the burrow and add crumbs."),
@@ -106,7 +107,8 @@ fun introFor(top: Screen?, tab: Int): Intro? = when (top) {
     Screen.Cats -> Intro("i.cats", "squirrel", tr("Категории", "Categories"), listOf(
         tr("Нажмите на категорию, чтобы переименовать её или задать лимит на месяц.", "Tap a category to rename it or set a monthly limit."),
         tr("Можно добавить свои категории – хранителем станет найденный питомец.", "You can add your own – a found pet becomes its keeper."),
-        tr("Ненужные категории можно скрыть: записи в них останутся.", "Categories you don't need can be hidden; their records stay.")))
+        tr("Ненужные категории можно скрыть: записи в них останутся.", "Categories you don't need can be hidden; their records stay."),
+        tr("Удерживайте категорию и перетащите, чтобы поменять порядок.", "Hold a category and drag it to change the order.")))
     Screen.Heard -> Intro("i.heard", "crow", tr("Ворона", "The crow"), listOf(
         tr("Ворона читает уведомления банка и превращает их в готовые записи.", "The crow reads bank notifications and turns them into ready records."),
         tr("Дайте доступ к уведомлениям и отметьте приложение своего банка.", "Allow notification access and tick your bank's app."),
