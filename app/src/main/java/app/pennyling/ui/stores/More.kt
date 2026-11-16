@@ -255,7 +255,23 @@ fun ReviewPage(d: Data, nav: Nav) {
             Row2(tr("Снежных дней", "Snow days"), value = "${d.s.snow.count { it in from..to }}")
         }
         Section(tr("Куда ушла", "Where it went"))
-        Card { st.byCat().take(4).forEach { cs -> Row2(cs.cat?.name ?: "–", "${(cs.share * 100).toInt()}%", money(cs.amount), lead = { CatMark(cs.cat, 34.dp, d.pets) }) } }
+        // a category opens into its records of the week
+        var open by remember { mutableStateOf<Long?>(null) }; var all by remember { mutableStateOf(false) }
+        val byCat = st.byCat()
+        Card {
+            (if (all) byCat else byCat.take(4)).forEach { cs ->
+                val id = cs.cat?.id ?: -1L
+                Row2(cs.cat?.name ?: "–", "${(cs.share * 100).toInt()}% · ${count(cs.count, "запись", "записи", "записей", "record", "records")}", money(cs.amount),
+                    lead = { CatMark(cs.cat, 34.dp, d.pets) }) { open = if (open == id) null else id }
+                if (open == id) Column(Modifier.padding(start = 20.dp, bottom = 6.dp)) {
+                    st.spends.filter { (d.catById[it.catId]?.id ?: -1L) == id }.sortedByDescending { it.amount }
+                        .forEach { t -> app.pennyling.ui.journal.TxRow(t, d, withDay = true) { nav.push(Screen.Add(t.id)) } }
+                }
+            }
+            if (byCat.size > 4) Text(if (all) tr("Свернуть", "Show less") else tr("Все категории (${byCat.size})", "All categories (${byCat.size})"),
+                style = T.smallB.copy(color = C.acc), modifier = Modifier.clickable { all = !all }.padding(vertical = 8.dp))
+        }
+        Text(tr("Нажмите на категорию – покажем, что в ней за неделю.", "Tap a category to see what went into it."), style = T.tiny, modifier = Modifier.padding(top = 6.dp))
         st.biggest.firstOrNull()?.let { t -> Section(tr("Самая крупная", "The biggest")); Card { app.pennyling.ui.journal.TxRow(t, d) { nav.push(Screen.Add(t.id)) } } }
         val regrets = st.worthAll.filter { it.worth == 3 }
         if (regrets.isNotEmpty()) Text(tr("О ${count(regrets.size, "трате", "тратах", "тратах", "spend", "spends")} вы пожалели – на ${money(regrets.sumOf { it.amount })}.", "You regretted ${count(regrets.size, "spend", "spends", "spends", "spend", "spends")} – ${money(regrets.sumOf { it.amount })}."), style = T.body, modifier = Modifier.padding(top = 12.dp))

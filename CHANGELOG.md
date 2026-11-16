@@ -6,6 +6,15 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.2.1] - 2026-11-16
+
+### Added
+- The owl's week in review: a category opens into its records of the week, biggest first, each with its day; "All categories" shows the ones past the top four.
+
+<!-- tg
+Новое: в разборе недели можно нажать на категорию и увидеть, из каких трат сложилась сумма. А кнопка «Все категории» покажет не только первые четыре.
+-->
+
 ## [1.2.0] - 2026-11-16
 
 ### Added

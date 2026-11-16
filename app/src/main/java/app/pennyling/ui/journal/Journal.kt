@@ -57,9 +57,9 @@ import app.pennyling.ui.theme.C
 import app.pennyling.ui.theme.T
 import java.time.LocalDate
 
-/** One record in a list: the category's keeper, what it was, the account, the amount. */
+/** One record in a list: the category's keeper, what it was, the account, the amount. [withDay] puts its day in place of the category. */
 @Composable
-fun TxRow(t: Tx, d: Data, onClick: () -> Unit) {
+fun TxRow(t: Tx, d: Data, withDay: Boolean = false, onClick: () -> Unit) {
     val cat = d.catById[t.catId]
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 7.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (t.kind == Tx.MOVE) Box(Modifier.size(40.dp).clip(CircleShape).background(C.card2), contentAlignment = Alignment.Center) { Icon(Icons.SWAP, C.mute, 20.dp) }
@@ -69,7 +69,8 @@ fun TxRow(t: Tx, d: Data, onClick: () -> Unit) {
             Text(when { t.kind == Tx.MOVE -> "${d.accById[t.accountId]?.name.orEmpty()} → ${d.accById[t.toAccountId]?.name.orEmpty()}"; t.note.isNotBlank() -> t.note; else -> cat?.name.orEmpty() },
                 style = T.bodyB, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val sub = buildList {
-                if (t.kind != Tx.MOVE && t.note.isNotBlank()) add(cat?.name.orEmpty())
+                if (withDay) add(app.pennyling.domain.fmtDayShort(t.day))
+                else if (t.kind != Tx.MOVE && t.note.isNotBlank()) add(cat?.name.orEmpty())
                 if (t.kind != Tx.MOVE) d.accById[t.accountId]?.let { add(it.name) }
                 if (t.source == "bill") add(tr("регулярный", "regular"))
                 if (t.source == "crow") add(tr("от вороны", "from the crow"))
