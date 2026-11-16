@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- The evening question «what did today cost?» and the «was it worth it?» reminders. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -52,6 +53,13 @@
         </provider>
 
         <!-- Persists the in-app language choice on Android 12 and older. -->
+        <!-- Lingvale, the village of all the -ling pets, reads the pets and the days from here; it checks who asks. -->
+        <provider
+            android:name=".bridge.VillageProvider"
+            android:authorities="${applicationId}.village"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"
