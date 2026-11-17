@@ -60,6 +60,21 @@ class EngineTest {
         assertTrue(pets.first { it.species == "hamster" }.xp > 0)
     }
 
+    @Test fun aKeepersEggGrowsOnlyOnItsOwnCategory() {
+        // The chipmunk's egg (fun) is one warm-up from hatching; a transport record must not hatch it (#8).
+        var pets = listOf(Pet(id = 1, species = "hamster", name = "h", found = 0, hatched = 1, slot = 0),
+            Pet(id = 2, species = "chipmunk", name = "c", found = 3, growth = 8), Pet(id = 3, species = "ant", name = "a", found = 3, growth = 8))
+        val byTransport = Engine.feed(pets, "mole", 6)
+        assertEquals(8, byTransport.pets.first { it.species == "chipmunk" }.growth)
+        assertEquals(listOf("ant"), byTransport.hatched.map { it.species })
+        // A surprise chipmunk egg from a full jar still warms on any record.
+        val open = Engine.feed(pets, "mole", 6, open = setOf(2L))
+        assertTrue(open.hatched.any { it.species == "chipmunk" })
+        // Its own category hatches it.
+        pets = byTransport.pets
+        assertTrue(Engine.feed(pets, "chipmunk", 7).hatched.any { it.species == "chipmunk" })
+    }
+
     @Test fun teamPerksDoubleTheirOwnThing() {
         val jay = listOf(Pet(species = "jay", name = "j", found = 0, hatched = 1, slot = 1))
         assertEquals(Engine.SNOW * 2, Engine.bonus(Engine.SNOW, app.pennyling.domain.Perk.SNOW, jay))

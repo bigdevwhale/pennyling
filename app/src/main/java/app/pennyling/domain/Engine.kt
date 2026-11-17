@@ -38,11 +38,14 @@ object Engine {
 
     /**
      * A new record feeds the keeper of its category (an egg of it appears with the first one) and gives the team a little.
+     * A keeper's egg grows only on records of its own category (#8): a transport record doesn't hatch the chipmunk of
+     * fun. Eggs that belong to no category, and the surprise eggs in [open] (from a full jar or the fair, maybe of a
+     * category never used), still warm a little on every record.
      * Returns the pets changed, new eggs to lay and pets that hatched.
      */
     data class Fed(val pets: List<Pet>, val eggs: List<String>, val hatched: List<Pet>, val grown: List<Pair<Pet, Stage>>)
 
-    fun feed(pets: List<Pet>, keeper: String, today: Long, xp: Int = 3): Fed {
+    fun feed(pets: List<Pet>, keeper: String, today: Long, xp: Int = 3, open: Set<Long> = emptySet()): Fed {
         val eggs = ArrayList<String>()
         if (keeper.isNotEmpty() && pets.none { it.species == keeper }) eggs += keeper
         val team = team(pets).map { it.id }.toSet()
@@ -51,8 +54,13 @@ object Engine {
             val before = p.stage()
             var q = p
             if (p.hatched == 0L) {
-                val g = p.growth + (if (p.species == keeper) 3 else 1)
-                q = if (g >= Pets.HATCH) p.copy(growth = Pets.HATCH, hatched = today, xp = 0).also { hatched += it } else p.copy(growth = g)
+                val step = when {
+                    p.species == keeper -> 3
+                    Pets.of(p.species).cat.isEmpty() || p.id in open -> 1
+                    else -> 0
+                }
+                val g = p.growth + step
+                q = if (step == 0) p else if (g >= Pets.HATCH) p.copy(growth = Pets.HATCH, hatched = today, xp = 0).also { hatched += it } else p.copy(growth = g)
             } else {
                 var add = 0
                 if (p.species == keeper) add += xp

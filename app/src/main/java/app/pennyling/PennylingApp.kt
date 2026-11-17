@@ -104,6 +104,20 @@ class AppContainer(context: Context) {
 
     // ---------- records ----------
 
+    /**
+     * Eggs of a category's keeper that came as a surprise (a full jar, the fair) rather than with the category's first
+     * record: when the egg turned up, nothing had been spent in its category yet.
+     */
+    private suspend fun surprises(pets: List<Pet>): Set<Long> {
+        val eggs = pets.filter { it.hatched == 0L && Pets.of(it.species).cat.isNotEmpty() }
+        if (eggs.isEmpty()) return emptySet()
+        val cats = dao.catList(); val txs = dao.txList()
+        return eggs.filter { p ->
+            val catIds = cats.filter { it.keeper == p.species }.map { it.id }.toSet()
+            txs.none { it.kind == Tx.SPEND && it.catId in catIds && it.day <= p.found }
+        }.map { it.id }.toSet()
+    }
+
     suspend fun addTx(t: Tx): Long = lock.withLock {
         val id = dao.insert(t)
         if (t.kind != Tx.MOVE) reward(t)
@@ -113,7 +127,7 @@ class AppContainer(context: Context) {
     private suspend fun reward(t: Tx) {
         val pets = dao.petList()
         val keeper = if (t.kind == Tx.SPEND) dao.catList().firstOrNull { it.id == t.catId }?.keeper.orEmpty() else ""
-        val fed = Engine.feed(pets, keeper, clock())
+        val fed = Engine.feed(pets, keeper, clock(), open = surprises(pets))
         dao.updatePets(fed.pets)
         val first = dao.txList().none { it.id != t.id && it.day == t.day && it.kind != Tx.MOVE && it.source != "bill" }
         val keeperInTeam = Engine.team(pets).any { it.species == keeper }
@@ -218,7 +232,7 @@ class AppContainer(context: Context) {
                 next = Bills.step(b, next)
                 // a regular payment feeds its keeper too (no crumbs: nothing was done by hand)
                 val keeper = if (b.income) "" else dao.catList().firstOrNull { it.id == b.catId }?.keeper.orEmpty()
-                if (keeper.isNotEmpty()) { val fed = Engine.feed(dao.petList(), keeper, clock(), xp = 2); dao.updatePets(fed.pets); lay(fed.eggs)
+                if (keeper.isNotEmpty()) { val ps = dao.petList(); val fed = Engine.feed(ps, keeper, clock(), xp = 2, open = surprises(ps)); dao.updatePets(fed.pets); lay(fed.eggs)
                     news(fed.hatched.map { "hatch:${it.id}" } + fed.grown.map { "stage:${it.first.id}:${it.second.ordinal}" }) }
             }
             dao.update(b.copy(next = next))
