@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.3.1] - 2026-11-17
+
+### Fixed
+- **Each egg hatches from its own category:** a keeper's egg now grows only on records of its category, so a transport record no longer hatches the chipmunk of fun. Eggs found for habits and the surprise eggs from a full jar or the fair still warm on every record (#8).
+
+<!-- tg
+Яйца в норке теперь вылупляются от записей своей категории: трата на транспорт больше не выведет бурундука за развлечения.
+Яйца-сюрпризы из банки и с ярмарки, как и раньше, греются от любых записей.
+-->
+
 ## [1.3.0] - 2026-11-16
 
 ### Added
