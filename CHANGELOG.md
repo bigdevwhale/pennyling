@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.4.0] - 2026-11-18
+
+### Added
+- **Moving to a new phone through Lingvale:** Lingvale can now gather the backups of all our apps into one file and load them back on another phone. Pennyling hands it the same backup file the settings save and takes one back the same way. Only Lingvale signed with our key is answered, loading happens only after you confirm it in Lingvale, and nothing leaves the phone.
+
+<!-- tg
+Переезд на новый телефон через Lingvale: деревня собирает копии всех наших приложений в один файл и возвращает их на новом телефоне.
+Pennyling отдаёт туда ту же копию, что сохраняют настройки.
+-->
+
 ## [1.3.1] - 2026-11-17
 
 ### Fixed
