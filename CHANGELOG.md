@@ -6,6 +6,28 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.5.0] - 2026-11-20
+
+### Added
+- **Ten keepers for categories of your own:** a frog, a stoat, a lynx kitten, a bear cub, a fawn, a snail, a robin, a wolf pup, a capybara and a red panda. Pick one when you make a category or edit it: its egg comes with the category's first record and hatches from its records. They don't turn up in jars or at the fair.
+- **A new category right from a record:** the "+ New" tile after the categories, with a keeper to choose.
+
+### Changed
+- **Spending from a savings pot leaves the daily ration alone:** a big one-off from an account of the "Savings" kind no longer sinks the day's ration (#17, #12).
+- **The record form:** the account, the day and "Where, what, why" come right under the amount, the categories after them (#9).
+- **Names under the category icons** in every category picker: the crow's records and regular payments too (#13).
+
+### Fixed
+- The day opened under the calendar now scrolls and shows all its records (#16).
+- The keyboard no longer covers "Where, what, why": the page moves up and the amount keypad steps aside while typing (#14).
+
+<!-- tg
+Для своих категорий – десять новых хранителей: лягушка, горностай, рысёнок, медвежонок, оленёнок, улитка, зарянка, волчонок, капибара и малая панда
+Новую категорию можно завести прямо из записи, а траты с копилки больше не съедают дневной паёк
+В записи сначала счёт и «Где, что, зачем», под иконками категорий – подписи
+Исправлено: в календаре видны все траты дня, клавиатура не закрывает поле заметки
+-->
+
 ## [1.4.0] - 2026-11-18
 
 ### Added
