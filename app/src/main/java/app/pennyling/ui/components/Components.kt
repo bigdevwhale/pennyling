@@ -359,3 +359,20 @@ fun Hint(id: String, seen: Set<String>, icon: Icons, title: String, text: String
         }
     }
 }
+
+/** A row of categories to pick from, each with its name under the icon (#13). */
+@Composable
+fun CatStrip(cats: List<app.pennyling.data.Cat>, sel: Long, pets: List<app.pennyling.data.Pet>, onSel: (Long) -> Unit) {
+    androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
+        cats.forEach { ct ->
+            val on = ct.id == sel
+            androidx.compose.foundation.layout.Column(
+                Modifier.width(64.dp).clip(RoundedCornerShape(12.dp)).background(if (on) catColor(ct).copy(alpha = .22f) else Color.Transparent).clickable { onSel(ct.id) }.padding(vertical = 4.dp, horizontal = 2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CatMark(ct, 36.dp, pets)
+                Text(ct.name, style = T.tiny.copy(color = if (on) C.ink else C.mute), maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
+}

@@ -1,5 +1,6 @@
 package app.pennyling.ui.journal
 
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -139,7 +140,8 @@ private fun MonthGrid(d: Data, m: LocalDate, list: List<Tx>, nav: Nav) {
     val byDay = list.filter { it.kind == Tx.SPEND }.groupBy { it.day }.mapValues { e -> e.value.sumOf { it.amount } }
     val max = (byDay.values.maxOrNull() ?: 1L).coerceAtLeast(1L)
     var open by rememberSaveable { mutableStateOf(-1L) }
-    Column(Modifier.fillMaxWidth()) {
+    // scrolls, so a day with many records shows them all under the grid (#16)
+    Column(Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState())) {
         Row(Modifier.fillMaxWidth()) { (0 until 7).forEach { Text(dayShort(it), style = T.tiny, modifier = Modifier.weight(1f), textAlign = TextAlign.Center) } }
         val first = m.toEpochDay(); val pad = m.dayOfWeek.value - 1; val n = m.lengthOfMonth()
         val cells = List(pad) { -1L } + (0 until n).map { first + it }
@@ -165,6 +167,7 @@ private fun MonthGrid(d: Data, m: LocalDate, list: List<Tx>, nav: Nav) {
             Text(fmtDay(open), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
             if (g.isEmpty()) Empty(if (open in d.s.snow) tr("Снежный день – без трат", "A snow day – nothing spent") else tr("Записей нет", "No records"))
             g.forEach { t -> TxRow(t, d) { nav.push(Screen.Add(t.id)) } }
+            Spacer(Modifier.height(30.dp))
         }
     }
 }

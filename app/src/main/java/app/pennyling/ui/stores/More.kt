@@ -108,7 +108,7 @@ fun AccountsPage(d: Data, nav: Nav) {
         Text(tr("всего на счетах", "across all accounts"), style = T.small)
         Btn(tr("Перевести между счетами", "Move between accounts"), Modifier.fillMaxWidth().padding(top = 12.dp), small = true) { nav.push(Screen.Add(kind = Tx.MOVE)) }
         Section(tr("Счета", "Accounts"))
-        Card { d.accounts.filter { !it.archived }.forEach { a -> Row2(a.name, when (a.kind) { Account.CASH -> tr("наличные", "cash"); Account.SAVE -> tr("копилка, из неё строится плотина", "savings – holds the dam"); else -> tr("карта или счёт", "card or account") },
+        Card { d.accounts.filter { !it.archived }.forEach { a -> Row2(a.name, when (a.kind) { Account.CASH -> tr("наличные", "cash"); Account.SAVE -> tr("копилка: держит плотину, траты с неё не трогают паёк", "savings: holds the dam; spending from it leaves the daily ration alone"); else -> tr("карта или счёт", "card or account") },
             money(st.balance(a)), lead = { Badge(accIcon(a), if (a.kind == Account.SAVE) C.ok else C.acc, 36.dp) }) { edit = a } } }
         val arch = d.accounts.filter { it.archived }
         if (arch.isNotEmpty()) { Section(tr("В архиве", "Archived")); Card { arch.forEach { a -> Row2(a.name, value = money(st.balance(a))) { edit = a } } } }
@@ -160,11 +160,7 @@ fun CatsPage(d: Data, nav: Nav) {
                 MoneyField(tr("Лимит в месяц (необязательно)", "Monthly limit (optional)"), limit, { limit = it })
                 if (ct.key.isEmpty()) {
                     Text(tr("Хранитель", "Keeper"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
-                    val free = d.pets.filter { it.hatched > 0 && Pets.of(it.species).cat.isEmpty() }.map { it.species }.distinct()
-                    if (free.isEmpty()) Text(tr("Хранителем может стать найденный питомец без своей категории. Таких пока нет.", "A found pet without its own category can keep this one – they come later."), style = T.small)
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        free.forEach { sp -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (sp == keeper) C.accSoft else C.card2).clickable { keeper = if (keeper == sp) "" else sp }.padding(4.dp)) { Mini(sp, 40.dp) } }
-                    }
+                    KeeperPicker(d, keeper, ct.id) { keeper = it }
                 }
             }
             if (ct.id != 0L) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) { androidx.compose.material3.Switch(arch, { arch = it }); Spacer(Modifier.width(8.dp)); Text(tr("Скрыть", "Hide"), style = T.body) }
@@ -225,10 +221,9 @@ private fun HeardCard(h: Heard, d: Data) {
         }
         Text(h.text, style = T.tiny, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
         Field(note, { note = it }, tr("Заметка", "Note"), Modifier.padding(top = 8.dp))
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            cats.forEach { ct -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (ct.id == cat) catColor(ct).copy(alpha = .25f) else C.card2).clickable { cat = ct.id }.padding(3.dp)) { CatMark(ct, 36.dp, d.pets) } }
-        }
-        Text(d.catById[cat]?.name ?: tr("Выберите категорию", "Pick a category"), style = T.tiny, modifier = Modifier.padding(top = 2.dp))
+        Spacer(Modifier.height(8.dp))
+        app.pennyling.ui.components.CatStrip(cats, cat, d.pets) { cat = it }
+        if (cat == 0L) Text(tr("Выберите категорию", "Pick a category"), style = T.tiny, modifier = Modifier.padding(top = 2.dp))
         Btn(tr("Записать", "Log it"), Modifier.fillMaxWidth().padding(top = 8.dp), small = true, enabled = cat != 0L) { c.write { take(h, cat, acc, note.trim()) } }
     }
 }
@@ -291,7 +286,7 @@ fun ShopPage(d: Data, nav: Nav) {
         Box(Modifier.fillMaxWidth().card(20.dp)) { BurrowScene(d.team, d.s.items - d.s.hidden, Pose.IDLE, preview = preview, sky = Sky.of(d.s), winter = d.ration.period.winter(d.today)) }
         Text(tr("Крошки даются за честный учёт: записи, снежные дни, ответы, решения, задания. Деньги здесь не тратятся.", "Crumbs come from honest books: records, snow days, answers, decisions, tasks. No real money here."), style = T.small, modifier = Modifier.padding(top = 10.dp))
         Section(tr("Яйцо с ярмарки", "An egg from the fair"))
-        val left = Pets.all.count { sp -> !sp.rare && d.pets.none { it.species == sp.id } }
+        val left = Pets.all.count { sp -> !sp.rare && !sp.own && d.pets.none { it.species == sp.id } }
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 EggView("hamster", 64.dp, .3f); Spacer(Modifier.width(10.dp))
@@ -434,4 +429,28 @@ fun SettingsPage(d: Data, nav: Nav) {
         Text(tr("Валюта", "Currency"), style = T.h2)
         Money.all.forEach { m -> Row2("${m.sign}  ${if (Lang.ru) m.ru else m.en}", m.code) { c.write { settings.update { it.copy(currency = m.code) } }; Money.set(m.code); cur = false } }
     }
+}
+
+/**
+ * A keeper for a category of the player's own: one of the ten keepers made for such categories, or a found pet that
+ * keeps nothing yet. Those already keeping another category are left out. Its egg comes with the category's first record.
+ */
+@Composable
+fun KeeperPicker(d: Data, keeper: String, catId: Long, onPick: (String) -> Unit) {
+    val taken = d.cats.filter { it.id != catId && it.keeper.isNotEmpty() }.map { it.keeper }.toSet()
+    val found = d.pets.filter { it.hatched > 0 && Pets.of(it.species).cat.isEmpty() }.map { it.species }
+    val choice = (Pets.own.map { it.id } + found).distinct().filter { it !in taken || it == keeper }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        choice.forEach { sp ->
+            val on = sp == keeper
+            Column(Modifier.width(84.dp).clip(RoundedCornerShape(14.dp)).background(if (on) C.accSoft else C.card2).clickable { onPick(if (on) "" else sp) }.padding(vertical = 6.dp, horizontal = 2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally) {
+                Mini(sp, 44.dp)
+                Text(Pets.of(sp).title, style = T.tiny.copy(color = if (on) C.ink else C.mute), maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
+    Text(if (keeper.isEmpty()) tr("Без хранителя записи просто греют все яйца понемногу.", "With no keeper the records just warm every egg a little.")
+        else if (d.pets.none { it.species == keeper }) tr("${Pets.of(keeper).title}: яйцо появится с первой записью в категории и вылупится из её записей.", "${Pets.of(keeper).title}: its egg comes with the category's first record and hatches from its records.")
+        else Pets.of(keeper).perk, style = T.small, modifier = Modifier.padding(top = 6.dp))
 }

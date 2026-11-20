@@ -97,9 +97,10 @@ data class Ration(
     val acorns get() = if (perDay <= 0) 0f else (left.toFloat() / perDay).coerceIn(0f, 1f)
 
     companion object {
-        fun of(txs: List<Tx>, bills: List<Bill>, budget: Long, payday: Int, today: Long): Ration {
+        /** [apart]: accounts whose spending has a budget of its own, the savings pots (#17, #12). */
+        fun of(txs: List<Tx>, bills: List<Bill>, budget: Long, payday: Int, today: Long, apart: Set<Long> = emptySet()): Ration {
             val p = Period.of(today, payday)
-            val spends = txs.filter { it.kind == Tx.SPEND && p.has(it.day) }
+            val spends = txs.filter { it.kind == Tx.SPEND && p.has(it.day) && it.accountId !in apart }
             val before = spends.filter { it.day < today }.sumOf { it.amount }
             val todayAll = spends.filter { it.day == today }
             val billToday = todayAll.filter { it.billId != 0L }.sumOf { it.amount }

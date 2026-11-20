@@ -17,7 +17,10 @@ OUT = ROOT / "app" / "src" / "main" / "res" / "drawable-nodpi"
 
 PETS = ["hamster", "squirrel", "raccoon", "beaver", "mole", "hedgehog", "magpie", "chipmunk", "bat", "mouse", "bee", "pika",
         "rabbit", "owl", "ant", "dormouse", "jay", "badger", "marmot", "fox", "crow", "tortoise", "otter", "pangolin",
-        "ferret"]  # the first 24 eggs are in eggs.png, later ones in egg_<id>.png
+        "ferret",
+        "frog", "stoat", "lynx", "bear", "fawn", "snail", "robin", "wolf", "capybara", "redpanda"]
+# the first 24 eggs are in eggs.png, the keepers of the player's own categories in eggs_own.png, others in egg_<id>.png
+OWN = ["frog", "stoat", "lynx", "bear", "fawn", "snail", "robin", "wolf", "capybara", "redpanda"]
 ITEMS = ["shelf", "barrels", "armchair", "stove", "books", "lantern", "fern", "clock",
          "sled", "sacks", "abacus", "chest", "garland", "hammock", "painting", "desk"]
 PROPS = ["acorn", "acorns", "coin", "crumbs", "jar0", "jar1", "jar2", "boulder",
@@ -97,6 +100,10 @@ def main():
         for name, fr in zip(PETS, frames(SHEETS / "eggs.png", 6, 4)):
             save(fr, f"egg_{name}")
         print("eggs")
+    if (SHEETS / "eggs_own.png").exists():
+        for name, fr in zip(OWN, frames(SHEETS / "eggs_own.png", 5, 2)):
+            save(fr, f"egg_{name}")
+        print("eggs_own")
     for p in PETS:
         if (SHEETS / f"egg_{p}.png").exists():
             save(frames(SHEETS / f"egg_{p}.png", 1, 1)[0], f"egg_{p}")

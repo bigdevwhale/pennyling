@@ -115,7 +115,7 @@ class Data(val s: Settings, val txs: List<Tx>, val cats: List<Cat>, val accounts
     val accById = accounts.associateBy { it.id }
     val team = Engine.team(pets)
     val leader = team.firstOrNull { it.slot == 0 } ?: pets.firstOrNull { it.hatched > 0 }
-    val ration = Ration.of(txs, bills, s.budget, s.payday, today)
+    val ration = Ration.of(txs, bills, s.budget, s.payday, today, accounts.filter { it.kind == Account.SAVE }.map { it.id }.toSet())
     val first = txs.minOfOrNull { it.day } ?: today
     fun saved(g: Goal) = moves.filter { it.kind == "goal" && it.refId == g.id }.sumOf { it.amount }
     fun paid(d: Debt) = moves.filter { it.kind == "debt" && it.refId == d.id }.sumOf { it.amount }

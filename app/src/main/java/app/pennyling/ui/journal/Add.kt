@@ -1,5 +1,7 @@
 package app.pennyling.ui.journal
 
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import app.pennyling.container
+import app.pennyling.data.Cat
 import app.pennyling.data.Tx
 import app.pennyling.domain.Lang
 import app.pennyling.domain.Money
@@ -73,7 +76,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /** A new record or one to change: the amount on a keypad, the category (its keeper looks on), the account, the day, a note. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
     val c = LocalContext.current.container
@@ -92,6 +95,8 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
     androidx.compose.runtime.LaunchedEffect(accs) { if (accs.none { it.id == acc }) acc = (accs.firstOrNull { it.kind == app.pennyling.data.Account.CARD } ?: accs.firstOrNull())?.id ?: 0L
         if (accs.none { it.id == toAcc }) toAcc = accs.firstOrNull { it.id != acc }?.id ?: 0L }
     var askDelete by remember { mutableStateOf(false) }
+    var newCat by remember { mutableStateOf<String?>(null) }
+    var newKeeper by remember { mutableStateOf("") }
     val cats = d.activeCats.filter { it.income == (kind == Tx.INCOME) }
     val value = parseMoney(amount) ?: 0L
     val ok = value > 0 && (kind == Tx.MOVE && acc != toAcc && toAcc != 0L || kind != Tx.MOVE && catId != 0L && cats.any { it.id == catId })
@@ -119,7 +124,9 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
         nav.pop()
     }
 
-    Column(Modifier.fillMaxSize().background(C.bg).statusBarsPadding().navigationBarsPadding()) {
+    // the system keyboard lifts the page and the keypad steps aside while it is open (#14)
+    val ime = androidx.compose.foundation.layout.WindowInsets.isImeVisible
+    Column(Modifier.fillMaxSize().background(C.bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).clip(CircleShape).clickable { nav.pop() }, contentAlignment = Alignment.Center) { Icon(Icons.CLOSE, C.ink, 22.dp) }
             Text(if (old == null) tr("Новая запись", "New record") else tr("Запись", "Record"), style = T.h2, modifier = Modifier.weight(1f).padding(start = 4.dp))
@@ -148,6 +155,19 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
                     Spacer(Modifier.height(12.dp))
                 }
             }
+            // where from, which day and what for come first, right under the amount; the keepers after (#9)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (kind != Tx.MOVE) Choice(Icons.CARD, d.accById[acc]?.name ?: "–", Modifier.weight(1f)) { pickAcc = true }
+                Choice(Icons.CAL, when (day) { d.today -> tr("Сегодня", "Today"); d.today - 1 -> tr("Вчера", "Yesterday"); else -> fmtDayShort(day) }, Modifier.weight(1f)) { pickDay = true }
+            }
+            Spacer(Modifier.height(8.dp))
+            Field(note, { note = it }, tr("Где, что, зачем", "Where, what, why"), single = true)
+            val notes = d.txs.filter { it.catId == catId && it.note.isNotBlank() && it.note != note && it.kind == kind }.map { it.note.trim() }.groupingBy { it }.eachCount()
+                .entries.sortedByDescending { it.value }.take(6).map { it.key }
+            if (notes.isNotEmpty() && kind != Tx.MOVE) Row(Modifier.fillMaxWidth().padding(top = 6.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                notes.forEach { n -> Chip(n, false) { note = n } }
+            }
+            Spacer(Modifier.height(14.dp))
             if (kind == Tx.MOVE) {
                 Text(tr("Откуда", "From"), style = T.sec, modifier = Modifier.padding(bottom = 6.dp))
                 AccountChips(d, acc) { acc = it }
@@ -167,19 +187,12 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
                             Text(ct.name, style = T.tiny.copy(color = if (on) C.ink else C.mute), maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                         }
                     } }
+                    // a new category without leaving the record (#6)
+                    Column(Modifier.clip(RoundedCornerShape(14.dp)).clickable { newCat = "" }.padding(vertical = 6.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).border(1.5.dp, C.line, CircleShape), contentAlignment = Alignment.Center) { Text("+", style = T.h2.copy(color = C.mute)) }
+                        Text(tr("Новая", "New"), style = T.tiny.copy(color = C.mute), maxLines = 1, modifier = Modifier.padding(top = 3.dp))
+                    }
                 }
-            }
-            // where from and which day: one row of two chips; the note right under
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (kind != Tx.MOVE) Choice(Icons.CARD, d.accById[acc]?.name ?: "–", Modifier.weight(1f)) { pickAcc = true }
-                Choice(Icons.CAL, when (day) { d.today -> tr("Сегодня", "Today"); d.today - 1 -> tr("Вчера", "Yesterday"); else -> fmtDayShort(day) }, Modifier.weight(1f)) { pickDay = true }
-            }
-            Spacer(Modifier.height(8.dp))
-            Field(note, { note = it }, tr("Где, что, зачем", "Where, what, why"), single = true)
-            val notes = d.txs.filter { it.catId == catId && it.note.isNotBlank() && it.note != note && it.kind == kind }.map { it.note.trim() }.groupingBy { it }.eachCount()
-                .entries.sortedByDescending { it.value }.take(6).map { it.key }
-            if (notes.isNotEmpty() && kind != Tx.MOVE) Row(Modifier.fillMaxWidth().padding(top = 6.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                notes.forEach { n -> Chip(n, false) { note = n } }
             }
             if (old != null && old.kind == Tx.SPEND && old.worth in 1..3) {
                 Text(tr("Стоило того: ", "Worth it: ") + when (old.worth) { 1 -> tr("да", "yes"); 2 -> tr("так себе", "so-so"); else -> tr("нет", "no") },
@@ -189,7 +202,7 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
             if (old?.source == "crow") Text(tr("Принесла ворона из уведомления банка", "Brought by the crow from a bank notification"), style = T.small, modifier = Modifier.padding(top = 8.dp))
             Spacer(Modifier.height(12.dp))
         }
-        Keypad(amount, { amount = it }, ok, if (old == null) tr("Записать", "Log it") else tr("Сохранить", "Save")) { save() }
+        if (!ime) Keypad(amount, { amount = it }, ok, if (old == null) tr("Записать", "Log it") else tr("Сохранить", "Save")) { save() }
     }
 
     var calendar by remember { mutableStateOf(false) }
@@ -208,6 +221,23 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
         DatePickerDialog(onDismissRequest = { calendar = false }, confirmButton = {
             TextButton({ st.selectedDateMillis?.let { day = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay() }; calendar = false }) { Text("OK") }
         }) { DatePicker(st) }
+    }
+    newCat?.let { nc ->
+        app.pennyling.ui.components.Popup({ newCat = null }) {
+            Text(if (kind == Tx.INCOME) tr("Новая категория дохода", "A new income category") else tr("Новая категория трат", "A new spending category"), style = T.h2)
+            Spacer(Modifier.height(10.dp))
+            Field(nc, { newCat = it.take(30) }, tr("Название", "Name"))
+            if (kind != Tx.INCOME) {
+                Text(tr("Хранитель", "Keeper"), style = T.sec, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                app.pennyling.ui.stores.KeeperPicker(d, newKeeper, 0L) { newKeeper = it }
+            }
+            Text(tr("Лимит можно задать потом в «Категориях».", "A limit can be set later in «Categories»."), style = T.small, modifier = Modifier.padding(top = 6.dp))
+            app.pennyling.ui.components.Btn(tr("Добавить", "Add"), Modifier.fillMaxWidth().padding(top = 14.dp), enabled = nc.isNotBlank()) {
+                val name = nc.trim(); val income = kind == Tx.INCOME; val kp = if (income) "" else newKeeper
+                c.write { val id = dao.insert(Cat(name = name, income = income, keeper = kp, order = d.cats.size)); catId = id }
+                newCat = null; newKeeper = ""
+            }
+        }
     }
     if (askDelete && old != null) app.pennyling.ui.components.Popup({ askDelete = false }) {
         Text(tr("Удалить запись?", "Delete the record?"), style = T.h2)

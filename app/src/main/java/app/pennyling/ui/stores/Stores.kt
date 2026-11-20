@@ -339,10 +339,8 @@ fun BillEditor(b: Bill, d: Data, onClose: () -> Unit) {
         }
         Text(tr("Категория", "Category"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
         val cats = d.activeCats.filter { it.income == income }
-        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            cats.forEach { ct -> Box(Modifier.clip(RoundedCornerShape(50)).background(if (ct.id == cat) catColor(ct).copy(alpha = .25f) else C.card2).clickable { cat = ct.id }.padding(3.dp)) { CatMark(ct, 36.dp, d.pets) } }
-        }
-        Text(d.catById[cat]?.name ?: tr("не выбрана", "not chosen"), style = T.tiny, modifier = Modifier.padding(top = 2.dp))
+        app.pennyling.ui.components.CatStrip(cats, cat, d.pets) { cat = it }
+        if (cat == 0L) Text(tr("не выбрана", "not chosen"), style = T.tiny, modifier = Modifier.padding(top = 2.dp))
         Text(tr("Счёт", "Account"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
         app.pennyling.ui.journal.AccountChips(d, acc) { acc = it }
         if (b.id != 0L) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {

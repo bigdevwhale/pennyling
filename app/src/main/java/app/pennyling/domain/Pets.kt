@@ -15,6 +15,8 @@ data class Species(
     val rare: Boolean = false,
 ) {
     val title get() = tr(ru, en)
+    /** A keeper for a category of the player's own, chosen when the category is made. */
+    val own get() = cat == Pets.OWN
     val perk get() = tr(perkRu, perkEn)
     val find get() = tr(findRu, findEn)
 }
@@ -25,6 +27,8 @@ enum class Stage { EGG, BABY, TEEN, ADULT, MASTER }
 enum class Perk { KEEPER, SNOW, WORTH, WISH, GOAL, DEBT, BILL, REVIEW, DAYS, HEARD, LONG, STASH, ALL }
 
 object Pets {
+    /** [Species.cat] of the keepers for the player's own categories. */
+    const val OWN = "own"
     const val HATCH = 9
     val TEEN = 60; val ADULT = 260; val MASTER = 900
 
@@ -32,7 +36,36 @@ object Pets {
         Species(id, ru, en, color, cat, names.split(","), namesEn.split(","), perkRu, perkEn,
             "Первая запись в категории – и в норке появится его яйцо", "Its egg appears with the first record in its category")
 
-    val all: List<Species> = listOf(
+    /** A keeper for a category the player makes: chosen for it, hatches from its records. */
+    private fun o(id: String, ru: String, en: String, color: Long, names: String, namesEn: String, perkRu: String, perkEn: String) =
+        Species(id, ru, en, color, OWN, names.split(","), namesEn.split(","), perkRu, perkEn,
+            "Выберите его хранителем своей категории – яйцо появится с первой записью в ней",
+            "Choose it as the keeper of a category of your own – its egg appears with the first record there")
+
+    /** Keepers for the player's own categories ten to choose from. */
+    val own: List<Species> = listOf(
+        o("frog", "Лягушка", "Frog", 0xFF5FA04A, "Кувшинка,Квакша,Листик,Прыгун,Росинка", "Lily,Croaky,Leaf,Hopper,Dewdrop",
+            "Хранитель вашей категории: в дождь и в вёдро бережёт каждую запись", "Keeper of a category of yours: minds every record, rain or shine"),
+        o("stoat", "Горностай", "Stoat", 0xFFEDEAE2, "Снежок,Пёрышко,Писарь,Кисточка,Зимка", "Snowy,Quill,Scribe,Tip,Frost",
+            "Хранитель вашей категории: аккуратно вносит каждую трату в книгу", "Keeper of a category of yours: writes every spend neatly in the ledger"),
+        o("lynx", "Рысёнок", "Lynx kitten", 0xFFC89A62, "Кисточка,Пятнышко,Клубок,Рыська,Мурлыка", "Tufts,Spots,Yarn,Lynxie,Purr",
+            "Хранитель вашей категории: зорко замечает, куда утекают деньги", "Keeper of a category of yours: sharp-eyed about where money slips away"),
+        o("bear", "Медвежонок", "Bear cub", 0xFF8A5A36, "Медок,Топтыжка,Бочонок,Мишутка,Малинка", "Honey,Stomper,Barrel,Teddy,Berry",
+            "Хранитель вашей категории: основательный и надёжный, как бочонок мёда", "Keeper of a category of yours: steady and solid, like a pot of honey"),
+        o("fawn", "Оленёнок", "Fawn", 0xFFB97A48, "Ромашка,Крапинка,Копытце,Лужок,Пятнистик", "Daisy,Dapple,Hoof,Meadow,Speckle",
+            "Хранитель вашей категории: бережно относится к каждой мелочи", "Keeper of a category of yours: gentle with every little thing"),
+        o("snail", "Улитка", "Snail", 0xFFD9B98A, "Чашечка,Неспешка,Завиток,Ракушка,Чаёк", "Teacup,Slowpoke,Swirl,Shell,Chai",
+            "Хранитель вашей категории: не торопится и не тратит зря", "Keeper of a category of yours: never rushes, never wastes"),
+        o("robin", "Зарянка", "Robin", 0xFFE0703A, "Заря,Письмецо,Грудка,Пичуга,Огонёк", "Dawn,Letter,Redbreast,Chirp,Spark",
+            "Хранитель вашей категории: приносит вести о каждой трате", "Keeper of a category of yours: brings word of every spend"),
+        o("wolf", "Волчонок", "Wolf pup", 0xFF8A8F98, "Серый,Луна,Вой,Шарфик,Туман", "Grey,Moon,Howl,Scarf,Mist",
+            "Хранитель вашей категории: верен своей стае и своему бюджету", "Keeper of a category of yours: loyal to the pack and the budget"),
+        o("capybara", "Капибара", "Capybara", 0xFFA67C52, "Мандаринка,Тихоня,Ванна,Капа,Спокойствие", "Tangerine,Calm,Bath,Cappy,Zen",
+            "Хранитель вашей категории: невозмутимо держит траты в узде", "Keeper of a category of yours: keeps spending in check without a fuss"),
+        o("redpanda", "Малая панда", "Red panda", 0xFFC0502A, "Блинчик,Колечко,Рыжик,Пандочка,Бамбук", "Pancake,Ring,Ginger,Panda,Bamboo",
+            "Хранитель вашей категории: весёлый, но счёт деньгам знает", "Keeper of a category of yours: cheerful, but counts every coin"),
+    )
+    private val base: List<Species> = listOf(
         Species("hamster", "Хомяк", "Hamster", 0xFFE0A050, "other", "Пшёнка,Щёкин,Зёрнышко,Бублик,Сырник".split(","), "Millet,Cheeks,Nugget,Bagel,Biscuit".split(","),
             "Главный по кладовой. Что осталось от пайка, прячет за щёку – в конце месяца покажет, сколько набралось",
             "Head of the pantry. What's left of the daily ration he tucks in his cheek and shows it all at the end of the month",
@@ -97,6 +130,7 @@ object Pets {
             "Легенда кладовой. С ним все крошки в норке приходят с прибавкой", "Legend of the pantry. With him, everything the burrow gives brings more",
             "Шесть месяцев подряд укладывайтесь в бюджет", "Stay within budget for six months", rare = true),
     )
+    val all: List<Species> = base + own
     val byId = all.associateBy { it.id }
     fun of(id: String) = byId[id] ?: all[0]
     fun keeperOf(catKey: String): Species? = all.firstOrNull { it.cat == catKey && catKey.isNotEmpty() }

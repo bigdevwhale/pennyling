@@ -60,6 +60,17 @@ PETS = {
     "otter": ("a river otter with a sleek brown coat", "floating on its back holding a smooth pebble on its belly"),
     "pangolin": ("a pangolin whose scales look like shiny gold coins", "curled up into a gleaming golden ball, peeking out"),
     "ferret": ("a slender cream and brown ferret with a dark eye mask and a little red painter's beret", "painting on a tiny wooden easel with a brush, a ball of yarn beside it"),
+    # keepers for the player's own categories
+    "frog": ("a round green tree frog with a lily-pad hat", "holding a big leaf as an umbrella"),
+    "stoat": ("a white winter stoat with a black tail tip and a tiny knitted red scarf", "writing in a small ledger with a quill"),
+    "lynx": ("a fluffy lynx kitten with tufted ears and a spotted coat", "batting at a ball of yarn"),
+    "bear": ("a chubby brown bear cub with a tiny blue knitted hat", "hugging a honey pot, paw in the honey"),
+    "fawn": ("a spotted deer fawn with a little flower crown", "sniffing a daisy"),
+    "snail": ("a little snail whose shell is a cozy teacup", "sipping tea from a tiny cup"),
+    "robin": ("a plump robin with an orange-red breast and a tiny satchel", "carrying a small sealed letter in its beak"),
+    "wolf": ("a grey wolf pup with a cozy striped scarf", "howling softly at a tiny paper moon lantern"),
+    "capybara": ("a calm round capybara with a small orange on its head", "relaxing in a little wooden tub of warm water"),
+    "redpanda": ("a red panda with a ringed tail and a tiny green bandana", "holding a stack of three pancakes"),
 }
 
 
@@ -127,6 +138,19 @@ Objects in order (left to right, top to bottom):
 13 a speckled egg in a straw nest, 14 a rolled paper receipt, 15 a golden medal with an oak leaf, 16 a small treasure chest open with gold coins.""",
 }
 
+
+# eggs of the keepers for the player's own categories: one sheet, 5 x 2
+OWN_EGGS = [("frog", "bright green with lily-pad spots"), ("stoat", "snow white with a black tip"), ("lynx", "tawny with dark spots and two little ear tufts"),
+            ("bear", "warm brown with a honey drip"), ("fawn", "chestnut with white dapples and a tiny flower"), ("snail", "cream with a teacup swirl"),
+            ("robin", "olive brown with an orange-red band"), ("wolf", "silver grey with a crescent moon"), ("capybara", "sandy brown, calm, with a small orange dot"),
+            ("redpanda", "russet red with cream rings")]
+OTHER["eggs_own"] = """Use your image generation tool to create ONE image. Do nothing else (no file copying).
+
+Image: a sprite sheet of 10 pet eggs for a cozy money-saving app, in the same set as other patterned pet eggs.
+""" + OBJ_STYLE + """
+Layout: 5 columns x 2 rows of equal square cells on a flat solid pure magenta (#FF00FF) background. One egg per cell, centered, with clear margin; no text, no grid lines, no nests, no shadows on the background.
+Each egg is the same size and egg-shaped, but with its own pattern and colours that hint at the creature inside, in this order (left to right, top to bottom):
+""" + ", ".join(f"{i + 1} {h} ({k})" for i, (k, h) in enumerate(OWN_EGGS)) + "."
 
 # eggs of pets added after the first 24: one egg per sheet, egg_<species>.png
 for _id, _hint in {"ferret": "cream with dark brown mask bands and little paint splashes"}.items():

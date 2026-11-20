@@ -18,6 +18,7 @@ import app.pennyling.domain.parseMoney
 import app.pennyling.domain.stage
 import app.pennyling.ui.stores.plan
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -82,9 +83,12 @@ class EngineTest {
     }
 
     @Test fun everySpeciesHasSixFramesNamed() {
-        assertEquals(25, Pets.all.size)
+        assertEquals(35, Pets.all.size)
+        assertEquals(10, Pets.own.size)
         assertEquals(Pets.all.size, Pets.all.map { it.id }.toSet().size)
-        assertEquals(15, Pets.all.count { it.cat.isNotEmpty() })
+        assertEquals(15, Pets.all.count { it.cat.isNotEmpty() && !it.own })
+        // keepers of the player's own categories never come out of a jar or the fair
+        repeat(50) { assertNotNull(Engine.anyEgg(emptySet(), it)); assertFalse(Pets.of(Engine.anyEgg(emptySet(), it)!!).own) }
         // every spending built-in has its own keeper
         Cats.seeds.filter { !it.income }.forEach { if (it.key != "other") assertNotNull(it.key, Pets.keeperOf(it.key)) }
     }

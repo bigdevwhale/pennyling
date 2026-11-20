@@ -104,7 +104,7 @@ object Engine {
 
     /** A species for an egg from a full jar or the fair: one not owned yet, the rare one last. */
     fun anyEgg(owned: Set<String>, seed: Int): String? {
-        val pool = Pets.all.filter { it.id !in owned && !it.rare }
+        val pool = Pets.all.filter { it.id !in owned && !it.rare && !it.own }
         if (pool.isEmpty()) return null
         return pool[Rand(seed).int(pool.size)].id
     }
