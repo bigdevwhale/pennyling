@@ -6,6 +6,15 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.6.0] - 2026-11-22
+
+### Added
+- **A snow day can be marked afterwards (#18):** the burrow offers to mark yesterday if nothing was spent and it wasn't marked; any earlier day without spending is marked (or unmarked) from the journal's calendar. It pays crumbs and counts for the week's tasks like one marked on the day.
+
+<!-- tg
+Снежный день можно отметить задним числом: вчерашний – прямо в Норке, любой прошлый день без трат – в календаре Журнала
+-->
+
 ## [1.5.0] - 2026-11-20
 
 ### Added

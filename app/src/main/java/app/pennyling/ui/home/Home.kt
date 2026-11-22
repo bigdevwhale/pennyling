@@ -115,6 +115,10 @@ fun HomeScreen(d: Data, nav: Nav) {
         }
         if (snow) Pill(tr("Снежный день – нажмите, чтобы отменить", "Snow day – tap to undo"), "snowflake", C.snow, Modifier.fillMaxWidth().padding(top = 8.dp)) { c.write { unSnow(d.today) } }
         else if (!spentToday) Pill(tr("Сегодня без трат? Отметить снежный день", "Nothing spent today? Mark a snow day"), "snowflake", C.snow, Modifier.fillMaxWidth().padding(top = 8.dp)) { c.write { snowDay(d.today); say(tr("Снежный день! Норка в инее", "A snow day! Frost in the burrow")) } }
+        // forgot to mark yesterday? it can still be (#18); older days – in the journal's calendar
+        val yesterday = d.today - 1
+        if (yesterday !in d.s.snow && d.txs.none { it.day == yesterday && it.kind == Tx.SPEND && it.billId == 0L })
+            Pill(tr("Вчера без трат? Отметить снежным днём", "Nothing spent yesterday? Mark it a snow day"), "snowflake", C.snow, Modifier.fillMaxWidth().padding(top = 8.dp)) { c.write { snowDay(yesterday); say(tr("Вчерашний день замело снегом", "Yesterday is snowed in")) } }
 
         // the week's tasks: what's next, the dots of progress and an arrow that says it opens
         val qs = d.s.quests.mapNotNull { Quests.byId[it] }

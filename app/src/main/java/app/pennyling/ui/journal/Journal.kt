@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.pennyling.container
 import app.pennyling.data.Tx
 import app.pennyling.domain.cap
 import app.pennyling.domain.dayShort
@@ -166,6 +167,14 @@ private fun MonthGrid(d: Data, m: LocalDate, list: List<Tx>, nav: Nav) {
             val g = list.filter { it.day == open }
             Text(fmtDay(open), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
             if (g.isEmpty()) Empty(if (open in d.s.snow) tr("Снежный день – без трат", "A snow day – nothing spent") else tr("Записей нет", "No records"))
+            // a day without spending can be marked a snow day afterwards, or unmarked (#18)
+            if (open <= d.today && g.none { it.kind == Tx.SPEND && it.billId == 0L }) {
+                val c = androidx.compose.ui.platform.LocalContext.current.container
+                val day = open; val on = day in d.s.snow
+                Text(if (on) tr("❄ Снять снежный день", "❄ Unmark the snow day") else tr("❄ Отметить снежным днём – трат не было", "❄ Mark it a snow day – nothing was spent"),
+                    style = T.smallB, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(14.dp)).background(C.snow.copy(alpha = .16f))
+                        .clickable { c.write { if (on) unSnow(day) else snowDay(day) } }.padding(horizontal = 12.dp, vertical = 10.dp))
+            }
             g.forEach { t -> TxRow(t, d) { nav.push(Screen.Add(t.id)) } }
             Spacer(Modifier.height(30.dp))
         }
