@@ -43,6 +43,7 @@ data class Settings(
     val outside: String = "",
     val cardBg: Int = 0,
     val hideSums: Boolean = false,               // on shared cards
+    val rates: Map<String, Double> = emptyMap(), // other currencies for accounts: main units for one of each (#3)
 ) {
     fun json(): JSONObject = JSONObject().apply {
         put("onboarded", onboarded); put("currency", currency); put("payday", payday); put("budget", budget); put("crumbs", crumbs)
@@ -53,6 +54,7 @@ data class Settings(
         put("period", period); put("won", won); put("winters", winters); put("reviewed", reviewed); put("crumbDay", crumbDay); put("crumbsToday", crumbsToday)
         put("town", town); if (!lat.isNaN()) { put("lat", lat); put("lon", lon) }; put("guessed", guessed); put("outside", outside)
         put("cardBg", cardBg); put("hideSums", hideSums)
+        put("rates", JSONObject().apply { rates.forEach { (k, v) -> put(k, v) } })
     }
 
     companion object {
@@ -65,7 +67,8 @@ data class Settings(
                 j.optInt("worthDays", 7), j.optInt("coolDays", 30), j.optInt("evening", 21), j.optLong("period"), j.optInt("won"), j.optInt("winters"),
                 j.optLong("reviewed"), j.optLong("crumbDay"), j.optInt("crumbsToday"),
                 j.optString("town"), j.optDouble("lat", Double.NaN), j.optDouble("lon", Double.NaN), j.optBoolean("guessed"), j.optString("outside"),
-                j.optInt("cardBg"), j.optBoolean("hideSums"))
+                j.optInt("cardBg"), j.optBoolean("hideSums"),
+                j.optJSONObject("rates")?.let { r -> r.keys().asSequence().associateWith { r.optDouble(it, 1.0) } } ?: emptyMap())
         }
     }
 }

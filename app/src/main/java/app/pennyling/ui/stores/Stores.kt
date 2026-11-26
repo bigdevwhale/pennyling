@@ -78,10 +78,10 @@ import kotlin.math.max
 
 /** A labelled money field. */
 @Composable
-fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
+fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, code: String = "") {
     Column(modifier) {
         Text(label, style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
-        Field(value, onChange, money(0), number = true)
+        Field(value, onChange, money(0, code), number = true)
     }
 }
 
@@ -447,7 +447,7 @@ fun DebtsPage(d: Data, nav: Nav) {
 fun DamPage(d: Data, nav: Nav) {
     val st = Stats(d.txs, Span(d.first, d.today, ""), d.catById, d.accounts, d.bills, d.s.budget, d.s.payday)
     val saves = d.accounts.filter { it.kind == Account.SAVE && !it.archived }
-    val held = saves.sumOf { st.balance(it) }
+    val held = saves.sumOf { st.balanceMain(it) }
     val month = max(st.monthlySpend, 1)
     val months = held.toDouble() / month
     Page(tr("Плотина", "The dam"), { nav.pop() }) {

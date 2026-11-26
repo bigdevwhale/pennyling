@@ -28,11 +28,14 @@ class WeekFacts(val monday: Long, txs: List<Tx>, moves: List<Move>, wishes: List
         val byDay = mine.filter { it.kind == Tx.SPEND && it.billId == 0L }.groupBy { it.day }.mapValues { e -> e.value.sumOf { it.amount } }
         (monday..minOf(monday + 6, today())).count { d -> (byDay[d] ?: 0) <= share && (d in byDay || d in snow) }
     }
-    var worth = 0
+    /** «Worth it?» answered this week, whenever the record itself was made (#20). */
+    val worth = txs.count { it.worth in 1..3 && it.worthDay in week }
 }
 
 data class Quest(val id: String, val ru: String, val en: String, val need: Int, val crumbs: Int, val progress: (WeekFacts) -> Int) {
     val title get() = tr(ru, en)
+    /** How far along this week: «2 / 4», capped at [need] (#7). */
+    fun done(f: WeekFacts) = progress(f).coerceIn(0, need)
 }
 
 object Quests {

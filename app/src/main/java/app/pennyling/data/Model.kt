@@ -1,6 +1,7 @@
 package app.pennyling.data
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -11,11 +12,16 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** Money is kept in minor units (kopecks, cents) everywhere. */
 
-/** Where money lives: a wallet, a card, a savings pot. [start] is the balance it was added with. */
+/**
+ * Where money lives: a wallet, a card, a savings pot. [start] is the balance it was added with, in its own currency.
+ * [cur] is that currency's code, "" for the main one (#3).
+ */
 @Entity
 data class Account(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -24,6 +30,7 @@ data class Account(
     val start: Long = 0,
     val archived: Boolean = false,
     val order: Int = 0,
+    @ColumnInfo(defaultValue = "''") val cur: String = "",
 ) { companion object { const val CASH = "cash"; const val CARD = "card"; const val SAVE = "save" } }
 
 /**
@@ -47,6 +54,10 @@ data class Cat(
  * One record. [kind] 0 spent, 1 received, 2 moved between accounts. [worth] is the answer to
  * «was it worth it?» a week later: 0 not asked yet, 1 yes, 2 so-so, 3 no, -1 not to be asked.
  * [source]: "" typed, "crow" from a bank notification, "bill" a regular payment, "import".
+ * [worthDay] is the day the question was answered (the week's quest counts answers by it, #20).
+ * [amount] is always in the main currency, so the budget and the chronicle add records up as they are. When the
+ * account is in another currency, [fx] is what it moved in that currency; [toFx] the same for the account a transfer
+ * goes to. 0 means the account is in the main currency (#3).
  */
 @Entity(indices = [Index("day"), Index("catId")])
 data class Tx(
@@ -62,7 +73,16 @@ data class Tx(
     val worth: Int = 0,
     val billId: Long = 0,
     val source: String = "",
-) { companion object { const val SPEND = 0; const val INCOME = 1; const val MOVE = 2 } }
+    @ColumnInfo(defaultValue = "0") val worthDay: Long = 0,
+    @ColumnInfo(defaultValue = "0") val fx: Long = 0,
+    @ColumnInfo(defaultValue = "0") val toFx: Long = 0,
+) {
+    /** What it took from (or brought to) [accountId], in that account's currency. */
+    fun own(): Long = if (fx != 0L) fx else amount
+    /** What a transfer brought to [toAccountId], in that account's currency. */
+    fun toOwn(): Long = if (toFx != 0L) toFx else amount
+    companion object { const val SPEND = 0; const val INCOME = 1; const val MOVE = 2 }
+}
 
 /** A regular payment: rent, a subscription, a salary. Posted by itself on [next]. [checked] is the last review day. */
 @Entity
@@ -240,11 +260,21 @@ interface Dao0 {
     @Query("DELETE FROM Heard") suspend fun wipeHeard()
 }
 
-@Database(entities = [Account::class, Cat::class, Tx::class, Bill::class, Goal::class, Debt::class, Move::class, Wish::class, Pet::class, Heard::class], version = 1)
+@Database(entities = [Account::class, Cat::class, Tx::class, Bill::class, Goal::class, Debt::class, Move::class, Wish::class, Pet::class, Heard::class], version = 2)
 abstract class Db : RoomDatabase() {
     abstract fun dao(): Dao0
 
     companion object {
-        fun create(ctx: Context): Db = Room.databaseBuilder(ctx, Db::class.java, "pennyling.db").build()
+        /** 1 → 2: the day a «worth it?» was answered (#20); account currencies and foreign sums (#3). */
+        val M1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE Account ADD COLUMN cur TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE Tx ADD COLUMN worthDay INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE Tx ADD COLUMN fx INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE Tx ADD COLUMN toFx INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        fun create(ctx: Context): Db = Room.databaseBuilder(ctx, Db::class.java, "pennyling.db").addMigrations(M1_2).build()
     }
 }

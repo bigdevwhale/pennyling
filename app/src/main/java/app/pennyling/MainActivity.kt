@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
                 enableEdgeToEdge(statusBarStyle = if (dark) SystemBarStyle.dark(t) else SystemBarStyle.light(t, t), navigationBarStyle = if (dark) SystemBarStyle.dark(t) else SystemBarStyle.light(t, t))
             }
             PennyTheme(dark) {
-                settings?.let { s -> Money.set(s.currency); if (s.onboarded) Root(s) else Onboarding() }
+                settings?.let { s -> Money.set(s.currency); Money.rates = s.rates; if (s.onboarded) Root(s) else Onboarding() }
             }
         }
     }

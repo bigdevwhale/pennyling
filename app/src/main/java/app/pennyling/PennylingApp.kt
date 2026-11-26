@@ -158,7 +158,7 @@ class AppContainer(context: Context) {
     suspend fun unSnow(day: Long) = lock.withLock { settings.update { it.copy(snow = it.snow - day) } }
 
     suspend fun answerWorth(t: Tx, a: Int) = lock.withLock {
-        dao.update(t.copy(worth = a))
+        dao.update(t.copy(worth = a, worthDay = if (a in 1..3) clock() else 0))
         if (a in 1..3) { val pets = dao.petList(); crumbs(Engine.bonus(Engine.WORTH, Perk.WORTH, pets)); dao.updatePets(Engine.cheer(pets, 1, "otter")) }
         afterAct()
     }
@@ -223,12 +223,16 @@ class AppContainer(context: Context) {
     /** Regular payments due by today become records. */
     private suspend fun postBills() {
         val t = clock()
+        val curs = dao.accountList().associate { it.id to it.cur }
         for (b in dao.billList().filter { it.active && it.next <= t }) {
             var next = b.next
+            // a bill is set in the main currency; on an account in another one it takes that much by the rate (#3)
+            val cur = curs[b.accountId].orEmpty()
+            val fx = if (Money.foreign(cur)) Money.conv(b.amount, "", cur) else 0L
             var n = 0
             while (next <= t && n++ < 24) {
                 dao.insert(Tx(amount = b.amount, kind = if (b.income) Tx.INCOME else Tx.SPEND, catId = b.catId, accountId = b.accountId, day = next,
-                    at = System.currentTimeMillis(), note = b.title, billId = b.id, source = "bill", worth = -1))
+                    at = System.currentTimeMillis(), note = b.title, billId = b.id, source = "bill", worth = -1, fx = fx))
                 next = Bills.step(b, next)
                 // a regular payment feeds its keeper too (no crumbs: nothing was done by hand)
                 val keeper = if (b.income) "" else dao.catList().firstOrNull { it.id == b.catId }?.keeper.orEmpty()
@@ -244,8 +248,11 @@ class AppContainer(context: Context) {
     suspend fun hear(h: Heard) = lock.withLock { dao.insert(h) }
     suspend fun take(h: Heard, catId: Long, accountId: Long, note: String) {
         lock.withLock { dao.update(h.copy(state = 1)); crumbs(Engine.bonus(2, Perk.HEARD, dao.petList())) }
-        addTx(Tx(amount = h.amount, kind = if (h.income) Tx.INCOME else Tx.SPEND, catId = catId, accountId = accountId, day = dayOf(h.at),
-            at = h.at, note = note, source = "crow"))
+        // the bank speaks in the account's currency: on a foreign account the sum is that currency's (#3)
+        val cur = dao.accountList().firstOrNull { it.id == accountId }?.cur.orEmpty()
+        val foreign = Money.foreign(cur)
+        addTx(Tx(amount = if (foreign) Money.toMain(h.amount, cur) else h.amount, kind = if (h.income) Tx.INCOME else Tx.SPEND, catId = catId, accountId = accountId, day = dayOf(h.at),
+            at = h.at, note = note, source = "crow", fx = if (foreign) h.amount else 0))
     }
     suspend fun drop(h: Heard) = lock.withLock { dao.update(h.copy(state = 2)) }
 
@@ -289,7 +296,6 @@ class AppContainer(context: Context) {
         val t = clock(); val monday = weekStart(t)
         val period = Period.of(t, s.payday)
         val facts = WeekFacts(monday, txs, moves, wishes, bills, s.snow, dao.accountList(), s.budget, period.days)
-        facts.worth = txs.count { it.worth in 1..3 && it.at >= java.time.LocalDate.ofEpochDay(monday).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
         val ids = if (s.questWeek == monday) s.quests else Quests.deal(monday, dao.debtList().any { it.done == 0L })
         val doneBefore = if (s.questWeek == monday) s.questsDone else emptySet()
         val newly = ids.mapNotNull { Quests.byId[it] }.filter { it.id !in doneBefore && it.progress(facts) >= it.need }
@@ -349,7 +355,7 @@ class PennylingApp : Application() {
         super.onCreate()
         Lang.ru = resources.configuration.locales[0].language == "ru"
         container = AppContainer(this)
-        container.scope.launch { Money.set(container.settings.now().currency) }
+        container.scope.launch { container.settings.now().let { Money.set(it.currency); Money.rates = it.rates } }
     }
 }
 

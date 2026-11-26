@@ -1,5 +1,6 @@
 package app.pennyling
 
+import app.pennyling.data.Account
 import app.pennyling.data.Bill
 import app.pennyling.data.Cat
 import app.pennyling.data.Debt
@@ -11,7 +12,11 @@ import app.pennyling.domain.Money
 import app.pennyling.domain.Notice
 import app.pennyling.domain.Period
 import app.pennyling.domain.Pets
+import app.pennyling.domain.Quests
 import app.pennyling.domain.Ration
+import app.pennyling.domain.Span
+import app.pennyling.domain.Stats
+import app.pennyling.domain.WeekFacts
 import app.pennyling.domain.Stage
 import app.pennyling.domain.money
 import app.pennyling.domain.parseMoney
@@ -143,5 +148,38 @@ class EngineTest {
         val snow = plan(debts, 400_00, false)!!; val ava = plan(debts, 400_00, true)!!
         assertTrue(ava.second <= snow.second)
         assertNull(plan(debts, 10_00, true))
+    }
+
+    @Test fun worthQuestCountsAnswersOfTheWeek() {
+        // #20: answers given this week count, though the records are older than the week
+        val monday = day(2026, 11, 23)
+        val txs = (1..5).map { Tx(id = it.toLong(), amount = 100, day = monday - 10, at = 0, worth = 1, worthDay = monday + 1) } +
+            Tx(id = 9, amount = 100, day = monday - 20, worth = 2, worthDay = monday - 3) + Tx(id = 10, amount = 100, day = monday - 8, worth = 0)
+        val f = WeekFacts(monday, txs, emptyList(), emptyList(), emptyList(), emptySet(), emptyList(), 0, 30)
+        assertEquals(5, f.worth)
+        val q = Quests.byId.getValue("worth4")
+        assertEquals(4, q.done(f))
+        assertTrue(q.progress(f) >= q.need)
+    }
+
+    @Test fun accountsInAnotherCurrency() {
+        // #3: a euro pot keeps its balance in euros; totals count it by the rate
+        Money.set("RUB"); Money.rates = mapOf("EUR" to 100.0)
+        try {
+            val rub = Account(id = 1, name = "Card", start = 50_000_00)
+            val eur = Account(id = 2, name = "Pot", kind = Account.SAVE, start = 10_00, cur = "EUR")
+            val txs = listOf(
+                Tx(id = 1, amount = 10_000_00, kind = Tx.MOVE, accountId = 1, toAccountId = 2, day = 1, toFx = 98_00),   // 10 000 ₽ became 98 €
+                Tx(id = 2, amount = 500_00, accountId = 2, catId = 1, day = 2, fx = 5_00),                               // 5 € spent
+                Tx(id = 3, amount = 1_000_00, kind = Tx.MOVE, accountId = 1, toAccountId = 1, day = 3))
+            val st = Stats(txs.take(2), Span(0, 10, ""), emptyMap(), listOf(rub, eur), emptyList(), 0, 1)
+            assertEquals(40_000_00, st.balance(rub))
+            assertEquals(103_00, st.balance(eur))
+            assertEquals(10_300_00, st.balanceMain(eur))
+            assertEquals(50_300_00, st.worth())
+            assertEquals(5_00, Money.conv(500_00, "", "EUR"))
+            assertEquals(500_00, Money.conv(500_00, "RUB", "RUB"))
+            assertTrue(money(12_50, "EUR").contains("€")); assertTrue(money(12_50).contains("₽"))
+        } finally { Money.rates = emptyMap() }
     }
 }

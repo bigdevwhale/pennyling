@@ -39,8 +39,22 @@ object Money {
         Cur("MXN", "MX$", true, "Мексиканское песо", "Mexican peso"),
     )
     @Volatile var cur: Cur = all[0]
+    /** The other currencies chosen for accounts: how many main units one unit of each is worth (#3). */
+    @Volatile var rates: Map<String, Double> = emptyMap()
     fun set(code: String) { cur = all.firstOrNull { it.code == code } ?: all[0] }
     fun of(code: String) = all.firstOrNull { it.code == code } ?: all[0]
+    /** An account's currency: "" (or the main code) is the main one. */
+    fun acc(code: String): Cur = if (code.isEmpty()) cur else of(code)
+    /** Whether [code] is a currency other than the main one. */
+    fun foreign(code: String) = code.isNotEmpty() && code != cur.code
+
+    /** Minor units of [from] in [to], by the rates; a currency without a rate counts one to one. */
+    fun conv(minor: Long, from: String, to: String): Long {
+        fun rate(c: String) = if (!foreign(c)) 1.0 else rates[c]?.takeIf { it > 0 } ?: 1.0
+        if (!foreign(from) && !foreign(to) || from == to) return minor
+        return (minor * rate(from) / rate(to)).roundToLong()
+    }
+    fun toMain(minor: Long, from: String) = conv(minor, from, "")
 
     /** The usual currency for the phone's country. */
     fun guess(country: String, ru: Boolean): String = when (country.uppercase()) {
@@ -53,19 +67,27 @@ object Money {
     }
 }
 
-private fun wrap(num: String, neg: Boolean, plus: Boolean): String {
-    val c = Money.cur
+private fun wrap(num: String, neg: Boolean, plus: Boolean, c: Cur = Money.cur): String {
     val sgn = if (neg) "−" else if (plus) "+" else ""
     return if (c.before) "$sgn${c.sign}$num" else "$sgn$num ${c.sign}"
 }
 
 /** 1 250 ₽ · $12.50 · −300 ₽. Kopecks only when there are any. [plus] marks money coming in. */
-fun money(minor: Long, plus: Boolean = false): String {
+fun money(minor: Long, plus: Boolean = false, c: Cur = Money.cur): String {
     val a = abs(minor)
     val whole = a / 100; val frac = a % 100
-    val num = if (frac == 0L || !Money.cur.minor) fmt(if (Money.cur.minor) whole else (a + 50) / 100) else fmt(whole) + (if (Lang.ru) "," else ".") + frac.toString().padStart(2, '0')
-    return wrap(num, minor < 0, plus && minor > 0)
+    val num = if (frac == 0L || !c.minor) fmt(if (c.minor) whole else (a + 50) / 100) else fmt(whole) + (if (Lang.ru) "," else ".") + frac.toString().padStart(2, '0')
+    return wrap(num, minor < 0, plus && minor > 0, c)
 }
+
+/** In an account's currency ([code] "" is the main one). */
+fun money(minor: Long, code: String, plus: Boolean = false): String = money(minor, plus, Money.acc(code))
+
+/** A rate typed in: «92,5» → 92.5; null when it isn't a positive number. */
+fun parseRate(s: String): Double? = s.replace(Regex("[\\s\\u00A0\\u202F]"), "").replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }
+
+/** A rate to show and edit: up to four decimals, no trailing zeros. */
+fun plainRate(r: Double): String = java.math.BigDecimal(r).setScale(4, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString().let { if (Lang.ru) it.replace('.', ',') else it }
 
 /** Whole units, rounded: for tiles and charts. */
 fun moneyR(minor: Long): String = wrap(fmt(abs((minor / 100.0).roundToLong())), minor < 0 && abs(minor) >= 50, false)

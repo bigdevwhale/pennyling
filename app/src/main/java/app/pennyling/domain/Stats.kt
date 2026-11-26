@@ -103,17 +103,20 @@ class Stats(val all: List<Tx>, val span: Span, val cats: Map<Long, Cat>, val acc
             .sortedByDescending { it.third }
     }
 
-    /** Balance of an account by the records. */
+    /** Balance of an account by the records, in the account's own currency. */
     fun balance(a: Account, upTo: Long = Long.MAX_VALUE): Long = a.start + all.filter { it.day <= upTo }.sumOf { t ->
         when {
-            t.kind == Tx.SPEND && t.accountId == a.id -> -t.amount
-            t.kind == Tx.INCOME && t.accountId == a.id -> t.amount
-            t.kind == Tx.MOVE && t.accountId == a.id -> -t.amount
-            t.kind == Tx.MOVE && t.toAccountId == a.id -> t.amount
+            t.kind == Tx.SPEND && t.accountId == a.id -> -t.own()
+            t.kind == Tx.INCOME && t.accountId == a.id -> t.own()
+            t.kind == Tx.MOVE && t.accountId == a.id -> -t.own()
+            t.kind == Tx.MOVE && t.toAccountId == a.id -> t.toOwn()
             else -> 0L
         } }
 
-    fun worth(upTo: Long = Long.MAX_VALUE) = accounts.filter { !it.archived }.sumOf { balance(it, upTo) }
+    /** The balance in the main currency, by today's rates (#3). */
+    fun balanceMain(a: Account, upTo: Long = Long.MAX_VALUE): Long = Money.toMain(balance(a, upTo), a.cur)
+
+    fun worth(upTo: Long = Long.MAX_VALUE) = accounts.filter { !it.archived }.sumOf { balanceMain(it, upTo) }
 
     /** Net worth at the end of each of the last [n] months. */
     fun worthLine(n: Int = 12): List<Pair<Double, Double>> {

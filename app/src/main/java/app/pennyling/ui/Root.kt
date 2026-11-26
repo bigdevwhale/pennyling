@@ -122,6 +122,8 @@ class Data(val s: Settings, val txs: List<Tx>, val cats: List<Cat>, val accounts
     /** Records old enough to ask «was it worth it?» about. */
     val toAsk = txs.filter { it.kind == Tx.SPEND && it.worth == 0 && it.billId == 0L && today - it.day >= s.worthDays && today - it.day <= 45 }
     val activeCats = cats.filter { !it.archived }
+    /** This week so far, for the quests' progress (#7). */
+    val week by lazy { app.pennyling.domain.WeekFacts(app.pennyling.domain.weekStart(today), txs, moves, wishes, bills, s.snow, accounts, s.budget, app.pennyling.domain.Period.of(today, s.payday).days) }
 }
 
 @Composable

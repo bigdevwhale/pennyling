@@ -77,10 +77,11 @@ fun TxRow(t: Tx, d: Data, withDay: Boolean = false, onClick: () -> Unit) {
                 if (t.source == "bill") add(tr("регулярный", "regular"))
                 if (t.source == "crow") add(tr("от вороны", "from the crow"))
                 when (t.worth) { 1 -> add("♥"); 3 -> add(tr("не стоило", "not worth it")) }
+                if (t.fx != 0L) add("≈ " + money(t.amount))
             }
             if (sub.isNotEmpty()) Text(sub.joinToString(" · "), style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Amount(t, Modifier.padding(start = 8.dp))
+        Amount(t, Modifier.padding(start = 8.dp), code = d.accById[t.accountId]?.cur.orEmpty())
     }
 }
 

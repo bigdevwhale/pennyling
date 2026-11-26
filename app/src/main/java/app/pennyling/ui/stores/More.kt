@@ -54,6 +54,8 @@ import app.pennyling.domain.fmtDay
 import app.pennyling.domain.fmtDayShort
 import app.pennyling.domain.money
 import app.pennyling.domain.parseMoney
+import app.pennyling.domain.parseRate
+import app.pennyling.domain.plainRate
 import app.pennyling.domain.plainMoney
 import app.pennyling.domain.relDay
 import app.pennyling.domain.tr
@@ -109,27 +111,43 @@ fun AccountsPage(d: Data, nav: Nav) {
         Btn(tr("Перевести между счетами", "Move between accounts"), Modifier.fillMaxWidth().padding(top = 12.dp), small = true) { nav.push(Screen.Add(kind = Tx.MOVE)) }
         Section(tr("Счета", "Accounts"))
         Card { d.accounts.filter { !it.archived }.forEach { a -> Row2(a.name, when (a.kind) { Account.CASH -> tr("наличные", "cash"); Account.SAVE -> tr("копилка: держит плотину, траты с неё не трогают паёк", "savings: holds the dam; spending from it leaves the daily ration alone"); else -> tr("карта или счёт", "card or account") },
-            money(st.balance(a)), lead = { Badge(accIcon(a), if (a.kind == Account.SAVE) C.ok else C.acc, 36.dp) }) { edit = a } } }
+            accMoney(st, a), lead = { Badge(accIcon(a), if (a.kind == Account.SAVE) C.ok else C.acc, 36.dp) }) { edit = a } } }
         val arch = d.accounts.filter { it.archived }
-        if (arch.isNotEmpty()) { Section(tr("В архиве", "Archived")); Card { arch.forEach { a -> Row2(a.name, value = money(st.balance(a))) { edit = a } } } }
+        if (arch.isNotEmpty()) { Section(tr("В архиве", "Archived")); Card { arch.forEach { a -> Row2(a.name, value = accMoney(st, a)) { edit = a } } } }
+        if (d.accounts.any { Money.foreign(it.cur) }) Text(tr("Счета в других валютах входят в общую сумму по курсу из настроек.", "Accounts in other currencies count towards the total by the rate in the settings."), style = T.small, modifier = Modifier.padding(top = 12.dp))
         Text(tr("Остаток считается так: начальная сумма плюс доходы и переводы на счёт, минус траты и переводы со счёта. Если не сходится с банком – поправьте начальную сумму.",
             "A balance is the starting sum plus income and transfers in, minus spending and transfers out. If it doesn't match the bank, adjust the starting sum."), style = T.small, modifier = Modifier.padding(top = 12.dp))
     }
     edit?.let { a -> var name by remember(a) { mutableStateOf(a.name) }; var kind by remember(a) { mutableStateOf(a.kind) }
+        var cur by remember(a) { mutableStateOf(a.cur.takeIf { Money.foreign(it) }.orEmpty()) }
+        // a currency can be chosen while the account has no records yet: the old ones were counted in the old one
+        val used = a.id != 0L && d.txs.any { it.accountId == a.id || it.toAccountId == a.id }
         var real by remember(a) { mutableStateOf(if (a.id == 0L) "" else plainMoney(st.balance(a))) }; var arch by remember(a) { mutableStateOf(a.archived) }
         Popup({ edit = null }) {
             Text(if (a.id == 0L) tr("Новый счёт", "A new account") else a.name, style = T.h2)
             TextField(tr("Название", "Name"), name, { name = it.take(30) }, tr("Карта, кошелёк, копилка…", "Card, wallet, savings…"))
             Text(tr("Что это", "What it is"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
             Segments(listOf(tr("Наличные", "Cash"), tr("Карта", "Card"), tr("Копилка", "Savings")), listOf(Account.CASH, Account.CARD, Account.SAVE).indexOf(kind).coerceAtLeast(0)) { kind = listOf(Account.CASH, Account.CARD, Account.SAVE)[it] }
-            MoneyField(tr("Сколько на нём сейчас", "What it holds now"), real, { real = it })
+            val curs = listOf("") + d.s.rates.keys.filter { Money.foreign(it) }
+            if (curs.size > 1 || Money.foreign(cur)) {
+                Text(tr("Валюта", "Currency"), style = T.sec, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+                if (used) Text("${Money.acc(cur).sign} · ${Money.acc(cur).let { if (Lang.ru) it.ru else it.en }} – " + tr("у счёта уже есть записи, валюту не поменять", "the account has records, so its currency stays"), style = T.small)
+                else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (curs + listOf(cur).filter { it !in curs }).forEach { k -> Chip("${Money.acc(k).sign} ${Money.acc(k).code}", k == cur) { cur = k } }
+                }
+            } else Text(tr("Счёт в другой валюте? Добавьте её в настройках: «Месяц и бюджет» → «Другие валюты».", "An account in another currency? Add it in the settings: «The month and budget» → «Other currencies»."), style = T.tiny, modifier = Modifier.padding(top = 8.dp))
+            MoneyField(tr("Сколько на нём сейчас", "What it holds now") + if (Money.foreign(cur)) ", ${Money.acc(cur).sign}" else "", real, { real = it }, code = cur)
             if (a.id != 0L) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) { androidx.compose.material3.Switch(arch, { arch = it }); Spacer(Modifier.width(8.dp)); Text(tr("В архиве", "Archived"), style = T.body) }
             Btn(tr("Сохранить", "Save"), Modifier.fillMaxWidth().padding(top = 16.dp), enabled = name.isNotBlank()) {
                 val want = parseMoney(real) ?: 0
-                c.write { if (a.id == 0L) dao.insert(a.copy(name = name.trim(), kind = kind, start = want))
-                    else dao.update(a.copy(name = name.trim(), kind = kind, archived = arch, start = a.start + (want - st.balance(a)))) }; edit = null }
+                c.write { if (a.id == 0L) dao.insert(a.copy(name = name.trim(), kind = kind, start = want, cur = cur))
+                    else dao.update(a.copy(name = name.trim(), kind = kind, archived = arch, start = a.start + (want - st.balance(a)), cur = if (used) a.cur else cur)) }; edit = null }
         } }
 }
+
+/** A balance in the account's currency; for another currency, what it comes to in the main one too. */
+fun accMoney(st: Stats, a: Account): String = if (!Money.foreign(a.cur)) money(st.balance(a))
+    else "${money(st.balance(a), a.cur)} ≈ ${money(st.balanceMain(a))}"
 
 // ---------------- categories ----------------
 
@@ -363,6 +381,7 @@ fun SettingsPage(d: Data, nav: Nav) {
     val scope = rememberCoroutineScope()
     val s = d.s
     var cur by remember { mutableStateOf(false) }
+    var addCur by remember { mutableStateOf(false) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch { val text = Backup.export(c); runCatching { ctx.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } }
             c.say(tr("Копия сохранена", "Backup saved")) } }
@@ -379,6 +398,23 @@ fun SettingsPage(d: Data, nav: Nav) {
             if (st.monthlySpend > 0) Text(tr("Обычно уходит ${money(st.monthlySpend)} в месяц", "Usually ${money(st.monthlySpend)} goes a month"), style = T.small, modifier = Modifier.padding(top = 6.dp))
             Text(tr("Валюта", "Currency"), style = T.sec, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
             Ghost("${Money.cur.sign} · ${if (Lang.ru) Money.cur.ru else Money.cur.en}", Modifier.fillMaxWidth(), small = true) { cur = true }
+            // other currencies: for accounts kept in them, a savings pot in euros, say (#3)
+            Text(tr("Другие валюты", "Other currencies"), style = T.sec, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+            Text(tr("Отметьте валюты, в которых у вас есть счета, и укажите курс. Счёт в такой валюте заводится в «Счетах»; бюджет и летопись считают всё в основной валюте.",
+                "Mark the currencies you keep accounts in and set the rate. An account in one is made in Accounts; the budget and the chronicle count everything in the main currency."), style = T.small)
+            s.rates.filterKeys { Money.foreign(it) }.toSortedMap().forEach { (code, rate) -> key(code) {
+                val f = Money.of(code)
+                var r by remember(code) { mutableStateOf(if (rate > 0) plainRate(rate) else "") }
+                val inUse = d.accounts.any { it.cur == code }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("1 ${f.sign} =", style = T.bodyB, modifier = Modifier.width(64.dp))
+                    Box(Modifier.weight(1f)) { Field(r, { v -> r = v; parseRate(v)?.let { x -> c.write { settings.update { st -> st.copy(rates = st.rates + (code to x)) } } } }, tr("курс", "rate"), number = true) }
+                    Text(Money.cur.sign, style = T.bodyB, modifier = Modifier.padding(start = 6.dp))
+                    if (!inUse) Box(Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).clickable { c.write { settings.update { st -> st.copy(rates = st.rates - code) } } }, contentAlignment = Alignment.Center) { Icon(Icons.CLOSE, C.mute, 18.dp) }
+                }
+                if (rate <= 0) Text(tr("Укажите курс – пока ${f.sign} считается один к одному.", "Set the rate – until then ${f.sign} counts one to one."), style = T.tiny.copy(color = C.bad), modifier = Modifier.padding(top = 2.dp))
+            } }
+            Ghost(tr("Добавить валюту", "Add a currency"), Modifier.fillMaxWidth().padding(top = 8.dp), small = true) { addCur = true }
         }
         Fold(Icons.LIST, C.acc, tr("Категории и лимиты", "Categories and limits"), tr("хранители, месячные лимиты", "keepers, monthly limits")) {
             Ghost(tr("Открыть", "Open"), Modifier.fillMaxWidth(), small = true) { nav.push(Screen.Cats) } }
@@ -428,6 +464,12 @@ fun SettingsPage(d: Data, nav: Nav) {
     if (cur) Popup({ cur = false }) {
         Text(tr("Валюта", "Currency"), style = T.h2)
         Money.all.forEach { m -> Row2("${m.sign}  ${if (Lang.ru) m.ru else m.en}", m.code) { c.write { settings.update { it.copy(currency = m.code) } }; Money.set(m.code); cur = false } }
+    }
+    if (addCur) Popup({ addCur = false }) {
+        Text(tr("Ещё валюта", "Another currency"), style = T.h2)
+        Text(tr("Курс потом можно поправить.", "The rate can be changed later."), style = T.small, modifier = Modifier.padding(bottom = 6.dp))
+        Money.all.filter { Money.foreign(it.code) && it.code !in s.rates }.forEach { m -> Row2("${m.sign}  ${if (Lang.ru) m.ru else m.en}", m.code) {
+            c.write { settings.update { it.copy(rates = it.rates + (m.code to 0.0)) } }; addCur = false } }
     }
 }
 

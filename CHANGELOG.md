@@ -6,6 +6,21 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.7.0] - 2026-11-26
+
+### Added
+- **Accounts in other currencies (#3):** mark the currencies you keep money in under Settings → "The month and budget" → "Other currencies" and set each one's rate, then give an account that currency (a savings pot in euros, say). The account keeps its balance in its own currency. A record on it is typed in that currency, and the sum in the main currency is filled in by the rate, which you can correct to what the bank charged. A transfer between currencies asks what arrived. The budget, the ration and the chronicle still count everything in the main currency, and the totals of accounts count foreign ones by the rate.
+- **Progress of the week's tasks (#7):** each unfinished task shows how far along it is ("2 of 4") with a thin bar, and the burrow's task line says it too.
+
+### Fixed
+- **"Answer 4 «Worth it?»" now counts (#20):** answers counted by the day the record was made, which is always a week or more back, so the task almost never filled. They count by the day of the answer now. Answers given before this update can't be counted, because their day wasn't kept.
+
+<!-- tg
+Счета в других валютах: копилка в евро, карта в долларах – курс задаётся в настройках, а бюджет считается в основной валюте
+У заданий недели виден прогресс: «2 из 4»
+Задание «Ответить на 4 „Стоило того?“» теперь засчитывается
+-->
+
 ## [1.6.0] - 2026-11-22
 
 ### Added

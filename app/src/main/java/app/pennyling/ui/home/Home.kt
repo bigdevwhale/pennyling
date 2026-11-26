@@ -128,7 +128,7 @@ fun HomeScreen(d: Data, nav: Nav) {
                 Prop("medal", 34.dp); Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(tr("Задания недели", "This week's tasks"), style = T.bodyB)
-                    Text(next?.let { "${it.title} · +${it.crumbs}" } ?: tr("Все выполнены – новые в понедельник", "All done – new ones on Monday"), style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(next?.let { "${it.title} · ${it.done(d.week)}/${it.need}" } ?: tr("Все выполнены – новые в понедельник", "All done – new ones on Monday"), style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(horizontal = 8.dp)) {
                     qs.forEach { q -> Box(Modifier.size(9.dp).clip(CircleShape).background(if (q.id in d.s.questsDone) C.ok else C.track)) }
@@ -144,7 +144,7 @@ fun HomeScreen(d: Data, nav: Nav) {
         val all = app.pennyling.domain.Stats(d.txs, app.pennyling.domain.Span(d.first, d.today, ""), d.catById, d.accounts, d.bills, d.s.budget, d.s.payday)
         val goals = d.goals.filter { !it.archived && it.done == 0L }
         val debts = d.debts.filter { it.done == 0L }
-        val save = d.accounts.filter { it.kind == app.pennyling.data.Account.SAVE && !it.archived }.sumOf { all.balance(it) }
+        val save = d.accounts.filter { it.kind == app.pennyling.data.Account.SAVE && !it.archived }.sumOf { all.balanceMain(it) }
         Text(tr("Кладовая", "The pantry"), style = T.sec, modifier = Modifier.padding(top = 18.dp, bottom = 8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Door("jar1", tr("Банки", "Jars"), Modifier.weight(1f), value = if (goals.isEmpty()) "–" else "${goals.sumOf { d.saved(it) } * 100 / goals.sumOf { it.target }.coerceAtLeast(1)}%") { nav.push(Screen.Goals) }
@@ -194,8 +194,20 @@ fun HomeScreen(d: Data, nav: Nav) {
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(26.dp).clip(CircleShape).background(if (done) C.ok else C.card2), contentAlignment = Alignment.Center) { if (done) Icon(Icons.CHECK, C.accInk, 16.dp) }
                 Spacer(Modifier.width(10.dp))
-                Text(q.title, style = if (done) T.body.copy(color = C.mute) else T.body, modifier = Modifier.weight(1f))
-                Text("+${q.crumbs}", style = T.smallB.copy(color = C.gold))
+                Column(Modifier.weight(1f)) {
+                    Text(q.title, style = if (done) T.body.copy(color = C.mute) else T.body)
+                    // how far along: «2 из 4» and a thin bar (#7)
+                    if (!done && q.need > 1) {
+                        val got = q.done(d.week)
+                        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(C.track)) {
+                                Box(Modifier.fillMaxWidth(got.toFloat() / q.need).height(4.dp).clip(RoundedCornerShape(2.dp)).background(C.acc))
+                            }
+                            Text(tr("$got из ${q.need}", "$got of ${q.need}"), style = T.tiny, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+                Text("+${q.crumbs}", style = T.smallB.copy(color = C.gold), modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

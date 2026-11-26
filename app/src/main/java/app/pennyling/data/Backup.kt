@@ -15,10 +15,11 @@ object Backup {
         return JSONObject().apply {
             put("app", "pennyling"); put("version", 1); put("at", System.currentTimeMillis())
             put("settings", c.settings.now().json())
-            put("accounts", arr(d.accountList().map { JSONObject().put("id", it.id).put("name", it.name).put("kind", it.kind).put("start", it.start).put("archived", it.archived).put("order", it.order) }))
+            put("accounts", arr(d.accountList().map { JSONObject().put("id", it.id).put("name", it.name).put("kind", it.kind).put("start", it.start).put("archived", it.archived).put("order", it.order).put("cur", it.cur) }))
             put("cats", arr(d.catList().map { JSONObject().put("id", it.id).put("name", it.name).put("income", it.income).put("keeper", it.keeper).put("icon", it.icon).put("limit", it.limit).put("archived", it.archived).put("order", it.order).put("key", it.key) }))
             put("txs", arr(d.txList().map { JSONObject().put("id", it.id).put("amount", it.amount).put("kind", it.kind).put("catId", it.catId).put("accountId", it.accountId).put("toAccountId", it.toAccountId)
-                .put("day", it.day).put("at", it.at).put("note", it.note).put("worth", it.worth).put("billId", it.billId).put("source", it.source) }))
+                .put("day", it.day).put("at", it.at).put("note", it.note).put("worth", it.worth).put("billId", it.billId).put("source", it.source)
+                .put("worthDay", it.worthDay).put("fx", it.fx).put("toFx", it.toFx) }))
             put("bills", arr(d.billList().map { JSONObject().put("id", it.id).put("title", it.title).put("amount", it.amount).put("catId", it.catId).put("accountId", it.accountId).put("income", it.income)
                 .put("every", it.every).put("next", it.next).put("sub", it.sub).put("active", it.active).put("checked", it.checked).put("keep", it.keep) }))
             put("goals", arr(d.goalList().map { JSONObject().put("id", it.id).put("name", it.name).put("target", it.target).put("created", it.created).put("until", it.until).put("done", it.done).put("egg", it.egg).put("color", it.color).put("archived", it.archived) }))
@@ -36,10 +37,10 @@ object Backup {
         val d = c.dao
         c.db.runInTransactionSuspend {
             d.wipeTx(); d.wipeAccounts(); d.wipeCats(); d.wipeBills(); d.wipeGoals(); d.wipeDebts(); d.wipeMoves(); d.wipeWishes(); d.wipePets(); d.wipeHeard()
-            j.objs("accounts").forEach { d.insert(Account(it.getLong("id"), it.getString("name"), it.optString("kind", Account.CARD), it.optLong("start"), it.optBoolean("archived"), it.optInt("order"))) }
+            j.objs("accounts").forEach { d.insert(Account(it.getLong("id"), it.getString("name"), it.optString("kind", Account.CARD), it.optLong("start"), it.optBoolean("archived"), it.optInt("order"), it.optString("cur"))) }
             d.insertCats(j.objs("cats").map { Cat(it.getLong("id"), it.getString("name"), it.optBoolean("income"), it.optString("keeper"), it.optString("icon"), it.optLong("limit"), it.optBoolean("archived"), it.optInt("order"), it.optString("key")) })
             d.insertTxs(j.objs("txs").map { Tx(it.getLong("id"), it.getLong("amount"), it.optInt("kind"), it.optLong("catId"), it.optLong("accountId"), it.optLong("toAccountId"), it.getLong("day"), it.optLong("at"),
-                it.optString("note"), it.optInt("worth"), it.optLong("billId"), it.optString("source")) })
+                it.optString("note"), it.optInt("worth"), it.optLong("billId"), it.optString("source"), it.optLong("worthDay"), it.optLong("fx"), it.optLong("toFx")) })
             j.objs("bills").forEach { d.insert(Bill(it.getLong("id"), it.getString("title"), it.getLong("amount"), it.optLong("catId"), it.optLong("accountId"), it.optBoolean("income"), it.optString("every", Bill.MONTH),
                 it.getLong("next"), it.optBoolean("sub"), it.optBoolean("active", true), it.optLong("checked"), it.optInt("keep"))) }
             j.objs("goals").forEach { d.insert(Goal(it.getLong("id"), it.getString("name"), it.getLong("target"), it.optLong("created"), it.optLong("until"), it.optLong("done"), it.optString("egg"), it.optInt("color"), it.optBoolean("archived"))) }

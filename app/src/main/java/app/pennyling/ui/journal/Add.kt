@@ -82,11 +82,16 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
     val c = LocalContext.current.container
     val old = d.txs.firstOrNull { it.id == scr.id }
     var kind by rememberSaveable { mutableStateOf(old?.kind ?: scr.kind) }
-    var amount by rememberSaveable { mutableStateOf(old?.let { plainMoney(it.amount) } ?: if (scr.amount > 0) plainMoney(scr.amount) else "") }
+    // the amount is typed in the account's currency (#3)
+    var amount by rememberSaveable { mutableStateOf(old?.let { plainMoney(it.own()) } ?: if (scr.amount > 0) plainMoney(scr.amount) else "") }
     var catId by rememberSaveable { mutableLongStateOf(old?.catId ?: scr.catId) }
     val accs = d.accounts.filter { !it.archived }
     var acc by rememberSaveable { mutableLongStateOf(old?.accountId ?: (accs.firstOrNull { it.kind == app.pennyling.data.Account.CARD } ?: accs.firstOrNull())?.id ?: 0L) }
     var toAcc by rememberSaveable { mutableLongStateOf(old?.toAccountId ?: accs.firstOrNull { it.id != acc }?.id ?: 0L) }
+    fun curOf(id: Long) = d.accById[id]?.cur.orEmpty().takeIf { Money.foreign(it) }.orEmpty()
+    // another currency: what it came to in the main one, and what a transfer brought to the other account; "" – by the rate
+    var mainOver by rememberSaveable { mutableStateOf(old?.takeIf { it.fx != 0L }?.let { plainMoney(it.amount) } ?: "") }
+    var toOver by rememberSaveable { mutableStateOf(old?.takeIf { it.kind == Tx.MOVE && curOf(it.accountId) != curOf(it.toAccountId) }?.let { plainMoney(it.toOwn()) } ?: "") }
     var day by rememberSaveable { mutableLongStateOf(old?.day ?: d.today) }
     var note by rememberSaveable { mutableStateOf(old?.note ?: scr.note) }
     var pickDay by remember { mutableStateOf(false) }
@@ -99,13 +104,23 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
     var newKeeper by remember { mutableStateOf("") }
     val cats = d.activeCats.filter { it.income == (kind == Tx.INCOME) }
     val value = parseMoney(amount) ?: 0L
-    val ok = value > 0 && (kind == Tx.MOVE && acc != toAcc && toAcc != 0L || kind != Tx.MOVE && catId != 0L && cats.any { it.id == catId })
+    val src = curOf(acc); val dst = if (kind == Tx.MOVE) curOf(toAcc) else src
+    val arrive = if (dst == src) value else parseMoney(toOver) ?: Money.conv(value, src, dst)
+    val mainAmt = when {
+        src.isEmpty() -> value
+        kind == Tx.MOVE && dst.isEmpty() -> arrive
+        else -> parseMoney(mainOver) ?: Money.toMain(value, src)
+    }
+    fun setAcc(id: Long) { acc = id; mainOver = ""; toOver = "" }
+    fun setToAcc(id: Long) { toAcc = id; toOver = "" }
+    val ok = value > 0 && mainAmt > 0 && arrive > 0 && (kind == Tx.MOVE && acc != toAcc && toAcc != 0L || kind != Tx.MOVE && catId != 0L && cats.any { it.id == catId })
     BackHandler { nav.pop() }
 
     fun save() {
         if (!ok) return
-        val t = Tx(id = old?.id ?: 0, amount = value, kind = kind, catId = if (kind == Tx.MOVE) 0 else catId, accountId = acc, toAccountId = if (kind == Tx.MOVE) toAcc else 0,
-            day = day, at = old?.at ?: System.currentTimeMillis(), note = note.trim(), worth = old?.worth ?: if (kind == Tx.SPEND) 0 else -1, billId = old?.billId ?: 0, source = old?.source ?: "")
+        val t = Tx(id = old?.id ?: 0, amount = mainAmt, kind = kind, catId = if (kind == Tx.MOVE) 0 else catId, accountId = acc, toAccountId = if (kind == Tx.MOVE) toAcc else 0,
+            day = day, at = old?.at ?: System.currentTimeMillis(), note = note.trim(), worth = old?.worth ?: if (kind == Tx.SPEND) 0 else -1, billId = old?.billId ?: 0, source = old?.source ?: "",
+            worthDay = old?.worthDay ?: 0, fx = if (src.isNotEmpty()) value else 0, toFx = if (kind == Tx.MOVE && dst.isNotEmpty()) arrive else 0)
         c.write {
             if (old == null) {
                 addTx(t)
@@ -136,9 +151,13 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
             Segments(listOf(tr("Трата", "Spent"), tr("Доход", "Income"), tr("Перевод", "Transfer")), kind) { kind = it; if (cats.none { c0 -> c0.id == catId }) catId = 0 }
             // the amount
             val col = when (kind) { Tx.INCOME -> C.ok; Tx.MOVE -> C.mute; else -> C.ink }
-            Text(if (amount.isEmpty()) money(0) else money(value), style = T.big.copy(color = if (amount.isEmpty()) C.line else col), modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp), textAlign = TextAlign.Center, maxLines = 1)
+            Text(money(if (amount.isEmpty()) 0 else value, src), style = T.big.copy(color = if (amount.isEmpty()) C.line else col), modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp), textAlign = TextAlign.Center, maxLines = 1)
+            if (kind != Tx.MOVE && src.isNotEmpty()) {
+                FxLine(tr("В основной валюте", "In the main currency"), mainOver, Money.toMain(value, src), "") { mainOver = it }
+                Spacer(Modifier.height(12.dp))
+            }
             // usual records in one tap
-            if (old == null && kind != Tx.MOVE) {
+            if (old == null && kind != Tx.MOVE && src.isEmpty()) {
                 val usual = d.txs.filter { it.kind == kind && it.billId == 0L && d.today - it.day < 120 }.groupBy { Triple(it.catId, it.amount, it.note.trim()) }
                     .filter { it.value.size >= 2 }.entries.sortedByDescending { it.value.size }.take(6).map { it.key }
                 if (usual.isNotEmpty()) {
@@ -157,7 +176,7 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
             }
             // where from, which day and what for come first, right under the amount; the keepers after (#9)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (kind != Tx.MOVE) Choice(Icons.CARD, d.accById[acc]?.name ?: "–", Modifier.weight(1f)) { pickAcc = true }
+                if (kind != Tx.MOVE) Choice(Icons.CARD, d.accById[acc]?.let { accName(it) } ?: "–", Modifier.weight(1f)) { pickAcc = true }
                 Choice(Icons.CAL, when (day) { d.today -> tr("Сегодня", "Today"); d.today - 1 -> tr("Вчера", "Yesterday"); else -> fmtDayShort(day) }, Modifier.weight(1f)) { pickDay = true }
             }
             Spacer(Modifier.height(8.dp))
@@ -170,9 +189,10 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
             Spacer(Modifier.height(14.dp))
             if (kind == Tx.MOVE) {
                 Text(tr("Откуда", "From"), style = T.sec, modifier = Modifier.padding(bottom = 6.dp))
-                AccountChips(d, acc) { acc = it }
+                AccountChips(d, acc) { setAcc(it) }
                 Text(tr("Куда", "To"), style = T.sec, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
-                AccountChips(d, toAcc) { toAcc = it }
+                AccountChips(d, toAcc) { setToAcc(it) }
+                if (dst != src) { Spacer(Modifier.height(12.dp)); FxLine(tr("Пришло на счёт", "Arrived"), toOver, Money.conv(value, src, dst), dst) { toOver = it } }
             } else {
                 Text(tr("Категория", "Category"), style = T.sec, modifier = Modifier.padding(bottom = 6.dp))
                 // a long press lifts a category: drag it to another place
@@ -202,7 +222,7 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
             if (old?.source == "crow") Text(tr("Принесла ворона из уведомления банка", "Brought by the crow from a bank notification"), style = T.small, modifier = Modifier.padding(top = 8.dp))
             Spacer(Modifier.height(12.dp))
         }
-        if (!ime) Keypad(amount, { amount = it }, ok, if (old == null) tr("Записать", "Log it") else tr("Сохранить", "Save")) { save() }
+        if (!ime) Keypad(amount, { amount = it; mainOver = ""; toOver = "" }, ok, if (old == null) tr("Записать", "Log it") else tr("Сохранить", "Save"), Money.acc(src).minor) { save() }
     }
 
     var calendar by remember { mutableStateOf(false) }
@@ -214,7 +234,7 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
     }
     if (pickAcc) app.pennyling.ui.components.Popup({ pickAcc = false }) {
         Text(if (kind == Tx.INCOME) tr("На какой счёт", "Into which account") else tr("С какого счёта", "From which account"), style = T.h2)
-        d.accounts.filter { !it.archived }.forEach { a -> app.pennyling.ui.components.Row2(a.name, if (a.id == acc) "✓" else null) { acc = a.id; pickAcc = false } }
+        d.accounts.filter { !it.archived }.forEach { a -> app.pennyling.ui.components.Row2(accName(a), if (a.id == acc) "✓" else null) { setAcc(a.id); pickAcc = false } }
     }
     if (calendar) {
         val st = rememberDatePickerState(initialSelectedDateMillis = LocalDate.ofEpochDay(day).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
@@ -252,18 +272,32 @@ fun AddPage(scr: Screen.Add, d: Data, nav: Nav) {
 @Composable
 fun AccountChips(d: Data, sel: Long, onSel: (Long) -> Unit) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        d.accounts.filter { !it.archived }.forEach { a -> Chip(a.name, a.id == sel) { onSel(a.id) } }
+        d.accounts.filter { !it.archived }.forEach { a -> Chip(accName(a), a.id == sel) { onSel(a.id) } }
     }
+}
+
+/** An account's name, with its currency's sign when that is not the main one. */
+fun accName(a: app.pennyling.data.Account) = if (Money.foreign(a.cur)) "${a.name} · ${Money.acc(a.cur).sign}" else a.name
+
+/** The sum in another currency: the rate's guess as a hint, or what the bank actually counted, typed in. */
+@Composable
+private fun FxLine(label: String, text: String, guess: Long, code: String, onText: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = T.small, modifier = Modifier.weight(1f))
+        Box(Modifier.width(130.dp)) { Field(text, { onText(it) }, if (guess > 0) plainMoney(guess) else "0", number = true) }
+        Text(Money.acc(code).sign, style = T.bodyB, modifier = Modifier.padding(start = 6.dp))
+    }
+    Text(tr("Подставлено по курсу; если банк насчитал иначе – впишите своё.", "Filled in by the rate; if the bank counted otherwise, type yours."), style = T.tiny, modifier = Modifier.padding(top = 2.dp))
 }
 
 /** A calculator-like keypad that edits [text] (a plain number) and a big button under it. */
 @Composable
-fun Keypad(text: String, onText: (String) -> Unit, ok: Boolean, label: String, onDone: () -> Unit) {
+fun Keypad(text: String, onText: (String) -> Unit, ok: Boolean, label: String, minor: Boolean = Money.cur.minor, onDone: () -> Unit) {
     val sep = if (Lang.ru) ',' else '.'
     fun press(k: String) {
         when (k) {
             "⌫" -> onText(text.dropLast(1))
-            "sep" -> if (Money.cur.minor && !text.contains(sep)) onText(if (text.isEmpty()) "0$sep" else text + sep)
+            "sep" -> if (minor && !text.contains(sep)) onText(if (text.isEmpty()) "0$sep" else text + sep)
             else -> { val frac = text.substringAfter(sep, ""); if (text.contains(sep) && frac.length >= 2) return
                 if (text.replace(sep.toString(), "").length >= 10) return
                 onText(if (text == "0") k else text + k) }
@@ -276,7 +310,7 @@ fun Keypad(text: String, onText: (String) -> Unit, ok: Boolean, label: String, o
                     Box(Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(14.dp)).clickable { press(k) }, contentAlignment = Alignment.Center) {
                         when (k) {
                             "⌫" -> Icon(Icons.BACK, C.ink, 24.dp)
-                            "sep" -> Text(if (Money.cur.minor) sep.toString() else "", style = T.num)
+                            "sep" -> Text(if (minor) sep.toString() else "", style = T.num)
                             else -> Text(k, style = T.num)
                         }
                     }

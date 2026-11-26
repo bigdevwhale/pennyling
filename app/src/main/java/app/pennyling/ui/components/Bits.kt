@@ -60,12 +60,15 @@ fun CatMark(c: Cat?, size: Dp = 40.dp, pets: List<Pet> = emptyList()) {
 
 /** An amount coloured by its way: spent in ink, received in green with a plus, moved in grey. */
 @Composable
-fun Amount(t: Tx, modifier: Modifier = Modifier, big: Boolean = false) {
+fun Amount(t: Tx, modifier: Modifier = Modifier, big: Boolean = false, code: String = "") {
     val st = if (big) T.num else T.numS
+    // a record on an account in another currency shows what it was in that currency (#3)
+    val v = if (t.fx != 0L && code.isNotEmpty()) t.fx else t.amount
+    val c = if (t.fx != 0L) code else ""
     when (t.kind) {
-        Tx.INCOME -> Text(money(t.amount, plus = true), style = st.copy(color = C.ok), modifier = modifier, maxLines = 1)
-        Tx.MOVE -> Text(money(t.amount), style = st.copy(color = C.mute), modifier = modifier, maxLines = 1)
-        else -> Text("−" + money(t.amount), style = st, modifier = modifier, maxLines = 1)
+        Tx.INCOME -> Text(money(v, c, plus = true), style = st.copy(color = C.ok), modifier = modifier, maxLines = 1)
+        Tx.MOVE -> Text(money(v, c), style = st.copy(color = C.mute), modifier = modifier, maxLines = 1)
+        else -> Text("−" + money(v, c), style = st, modifier = modifier, maxLines = 1)
     }
 }
 
